@@ -1,9 +1,30 @@
 import { Button, CircularProgress, TextField } from '@mui/material'
-import { ArrowDownUp, ArrowRight, Check, FlaskConical, Truck } from 'lucide-react'
-import { copy, type Language } from '../i18n'
+import { ArrowDownUp, ArrowRight, ChevronDown } from 'lucide-react'
+import type { Language } from '../i18n'
 import type { Location } from '../types'
 import LocationField from './LocationField'
-
+type Props = {
+  lang: Language
+  origin: Location | null
+  destination: Location | null
+  departure: string
+  load: string
+  spacing: number
+  mode: 'live' | 'demo'
+  loading: boolean
+  reassessing: boolean
+  loadValid: boolean
+  retrySeconds: number
+  onOrigin: (value: Location | null) => void
+  onDestination: (value: Location | null) => void
+  onDeparture: (value: string) => void
+  onLoad: (value: string) => void
+  onSpacing: (value: number) => void
+  onSubmit: () => void
+  onExample: () => void
+  onLive: () => void
+  onCancel: () => void
+}
 export default function TripForm({
   lang,
   origin,
@@ -15,137 +36,84 @@ export default function TripForm({
   loading,
   reassessing,
   loadValid,
-  dirty,
   retrySeconds,
   onOrigin,
   onDestination,
   onDeparture,
   onLoad,
   onSpacing,
-  onMode,
   onSubmit,
+  onExample,
+  onLive,
   onCancel,
-}: {
-  lang: Language
-  origin: Location | null
-  destination: Location | null
-  departure: string
-  load: string
-  spacing: number
-  mode: 'live' | 'demo'
-  loading: boolean
-  reassessing: boolean
-  loadValid: boolean
-  dirty: boolean
-  retrySeconds: number
-  onOrigin: (value: Location | null) => void
-  onDestination: (value: Location | null) => void
-  onDeparture: (value: string) => void
-  onLoad: (value: string) => void
-  onSpacing: (value: number) => void
-  onMode: (value: 'live' | 'demo') => void
-  onSubmit: () => void
-  onCancel: () => void
-}) {
-  const t = copy[lang]
+}: Props) {
+  const busy = loading || reassessing
+  const valid = !!origin && !!destination && loadValid && !!departure
   const zone = Intl.DateTimeFormat().resolvedOptions().timeZone
   return (
     <aside className="planning-panel">
       <form
         id="trip-form"
-        onSubmit={(e) => {
-          e.preventDefault()
+        onSubmit={(event) => {
+          event.preventDefault()
           onSubmit()
         }}
       >
         <div className="panel-title">
-          <span className="step-number">1</span>
-          <div>
-            <h2>{lang === 'es' ? '¿Cuál es tu viaje?' : 'Where are you headed?'}</h2>
-            <p>{t.cityHint}</p>
-          </div>
-        </div>
-        <div className="mode-switch" aria-label={lang === 'es' ? 'Tipo de viaje' : 'Trip mode'}>
-          <button
-            type="button"
-            aria-pressed={mode === 'live'}
-            className={mode === 'live' ? 'active' : ''}
-            onClick={() => onMode('live')}
-            disabled={loading}
-          >
-            <span className="live-dot" />
-            {t.liveMode}
-          </button>
-          <button
-            type="button"
-            aria-pressed={mode === 'demo'}
-            className={mode === 'demo' ? 'active' : ''}
-            onClick={() => onMode('demo')}
-            disabled={loading}
-          >
-            <FlaskConical size={14} />
-            {t.demoMode}
-          </button>
+          <h1>Plan your trip</h1>
+          <p>Compare routes by weather risk.</p>
         </div>
         <div className="location-fields">
-          <div className="location-connector">
+          <div className="location-connector" aria-hidden="true">
             <span>A</span>
             <i />
             <span>B</span>
           </div>
           <div className="location-inputs">
             <LocationField
-              label={t.origin}
+              label="Origin"
               lang={lang}
               value={origin}
               onChange={onOrigin}
-              disabled={loading || mode === 'demo'}
+              disabled={loading}
             />
             <LocationField
-              label={t.destination}
+              label="Destination"
               lang={lang}
               value={destination}
               onChange={onDestination}
-              disabled={loading || mode === 'demo'}
+              disabled={loading}
             />
           </div>
         </div>
-        {mode === 'live' && (
-          <button
-            className="swap-button"
-            type="button"
-            disabled={loading}
-            onClick={() => {
-              onOrigin(destination)
-              onDestination(origin)
-            }}
-          >
-            <ArrowDownUp size={13} />
-            {t.swap}
-          </button>
-        )}
-        {mode === 'demo' && <p className="field-note demo-form-note">{t.demoRoute}</p>}
+        <button
+          className="swap-button"
+          type="button"
+          disabled={loading}
+          onClick={() => {
+            onOrigin(destination)
+            onDestination(origin)
+          }}
+        >
+          <ArrowDownUp size={13} />
+          Swap
+        </button>
         <TextField
           className="departure-field"
-          label={t.departure}
+          label="Departure"
           type="datetime-local"
           size="small"
           fullWidth
           required
           value={departure}
           disabled={loading}
-          onChange={(e) => onDeparture(e.target.value)}
+          onChange={(event) => onDeparture(event.target.value)}
           slotProps={{ inputLabel: { shrink: true } }}
         />
-        <p className="field-note">
-          {t.localTime} · {zone}
-        </p>
-        <label className="cargo-label" htmlFor="cargo-input">
-          <Truck size={16} />
-          {t.cargo}
-        </label>
+        <p className="field-note">Local time · {zone}</p>
         <TextField
           id="cargo-input"
+          label="Cargo weight"
           type="number"
           size="small"
           fullWidth
@@ -153,73 +121,84 @@ export default function TripForm({
           disabled={loading}
           required
           error={!loadValid}
-          onChange={(e) => onLoad(e.target.value)}
-          helperText={!loadValid ? t.cargoError : undefined}
+          onChange={(event) => onLoad(event.target.value)}
+          helperText={
+            loadValid
+              ? 'Cargo only; excludes vehicle weight.'
+              : 'Enter a value from 0 to 200,000 lb.'
+          }
           slotProps={{
-            htmlInput: { min: 0, max: 200000, step: 1, 'aria-label': t.cargo },
+            htmlInput: { min: 0, max: 200000, step: 1 },
             input: { endAdornment: <span className="input-unit">lb</span> },
           }}
         />
-        <p className="field-note">{t.cargoHelp}</p>
-        <div className="sampling-label">{t.sampling}</div>
-        <div className="spacing-options">
-          {[10, 25, 50].map((value, index) => (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={spacing === value}
-              className={spacing === value ? 'active' : ''}
-              onClick={() => onSpacing(value)}
-              disabled={loading}
-            >
-              <span>
-                <strong>{value}</strong> mi {spacing === value && <Check size={12} />}
-              </span>
-              <small>{[t.detail, t.balanced, t.fewer][index]}</small>
-            </button>
-          ))}
-        </div>
-        <p className="sampling-help">{t.samplingHelp}</p>
+        <details className="trip-options">
+          <summary>
+            Weather sampling{' '}
+            <span>
+              Every {spacing} mi <ChevronDown size={14} />
+            </span>
+          </summary>
+          <p>Check the forecast at arrival along the road, every:</p>
+          <div className="spacing-options" aria-label="Weather sampling interval">
+            {[10, 25, 50].map((value) => (
+              <button
+                type="button"
+                key={value}
+                aria-pressed={value === spacing}
+                className={value === spacing ? 'active' : ''}
+                disabled={loading}
+                onClick={() => onSpacing(value)}
+              >
+                {value} mi
+              </button>
+            ))}
+          </div>
+          <p>More points give a finer estimate. These are weather checks, not stops.</p>
+        </details>
         <Button
-          variant="contained"
           type="submit"
+          variant="contained"
           fullWidth
           className="analyze-button"
-          disabled={
-            loading ||
-            reassessing ||
-            !origin ||
-            !destination ||
-            !loadValid ||
-            !departure ||
-            (mode === 'live' && retrySeconds > 0)
-          }
-          endIcon={
-            loading || reassessing ? (
-              <CircularProgress size={16} color="inherit" />
-            ) : (
-              <ArrowRight size={17} />
-            )
-          }
+          disabled={busy || !valid || (mode === 'live' && retrySeconds > 0)}
+          endIcon={busy ? <CircularProgress size={16} color="inherit" /> : <ArrowRight size={17} />}
         >
           {loading
-            ? t.analyzing
+            ? 'Comparing routes...'
             : reassessing
-              ? t.loadUpdating
+              ? 'Updating risk...'
               : mode === 'live' && retrySeconds > 0
-                ? `${lang === 'es' ? 'Disponible en' : 'Available in'} ${retrySeconds}s`
+                ? `Available in ${retrySeconds}s`
                 : mode === 'demo'
-                  ? t.simulate
-                  : t.analyze}
+                  ? 'Update example'
+                  : 'Compare routes'}
         </Button>
         {loading ? (
           <button type="button" className="cancel-button" onClick={onCancel}>
-            {t.cancel}
+            Cancel
           </button>
+        ) : mode === 'demo' ? (
+          <div className="example-status">
+            <span>Example · simulated weather</span>
+            <button
+              className="text-button"
+              type="button"
+              onClick={onLive}
+              disabled={busy || !valid || retrySeconds > 0}
+            >
+              Use live weather
+            </button>
+          </div>
         ) : (
-          <p className={`form-footnote ${dirty ? 'changed-note' : ''}`}>
-            {dirty ? t.changed : reassessing ? t.loadUpdating : t.loadUpdated}
-          </p>
+          <button
+            type="button"
+            className="example-button"
+            onClick={onExample}
+            disabled={busy || !loadValid || !departure}
+          >
+            Try a Chicago → Detroit example
+          </button>
         )}
       </form>
     </aside>

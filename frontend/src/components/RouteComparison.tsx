@@ -1,10 +1,8 @@
-import { motion } from 'motion/react'
-import { ArrowRight, Check, Clock3, ShieldAlert, Sparkles } from 'lucide-react'
+import { Check, Clock3, ShieldCheck, ShieldAlert } from 'lucide-react'
 import { duration } from '../api'
-import { copy, fmt, recommendationText, routeNumber, slowestExtra, type Language } from '../i18n'
+import { fmt, recommendationText, routeNumber, slowestExtra, type Language } from '../i18n'
 import type { Analysis } from '../types'
 import { RISK_COLORS } from '../types'
-
 export default function RouteComparison({
   data,
   selected,
@@ -16,62 +14,50 @@ export default function RouteComparison({
   lang: Language
   onSelect: (id: string) => void
 }) {
-  const t = copy[lang]
-  const best = data.recommendation.route_id
   return (
-    <section className="comparison-section" aria-label={t.step2}>
-      <div className="section-title">
-        <h2>{t.step2}</h2>
-        <span>{t.exposure}</span>
-      </div>
+    <section className="comparison-section" aria-label="Compare routes">
       <div className="route-options">
         {data.routes.map((route, index) => {
-          const recommended = route.id === best
           const active = selected === route.id
+          const recommended =
+            data.recommendation.tied_route_ids.includes(route.id) ||
+            route.id === data.recommendation.route_id
           const summary = route.summary
-          const extraMinutes = slowestExtra(route, data)
+          const extra = slowestExtra(route, data)
           return (
-            <motion.button
+            <button
               key={route.id}
-              layout
-              transition={{ type: 'spring', bounce: 0, duration: 0.3 }}
               className={`route-card ${active ? 'active' : ''} ${summary.status}`}
               aria-pressed={active}
               onClick={() => onSelect(route.id)}
               data-route-id={route.id}
             >
-              {active && (
-                <motion.span
-                  layoutId="route-highlight"
-                  className="route-highlight"
-                  transition={{ type: 'spring', bounce: 0, duration: 0.3 }}
-                />
-              )}
               <div className="route-card-top">
-                <span className="route-name">
-                  <span className="route-number">{index + 1}</span>
-                  {t.route} {index + 1}
-                </span>
-                {recommended ? (
-                  <span className="recommended-tag">
-                    <Sparkles size={12} />
-                    {t.recommended}
-                  </span>
-                ) : summary.status !== 'ready' ? (
+                <span className="route-name">Route {index + 1}</span>
+                {summary.status !== 'ready' ? (
                   <span className={`status-tag ${summary.status}`}>
-                    {summary.status === 'blocked' ? t.blocked : t.incomplete}
+                    {summary.status === 'blocked' ? 'No Travel' : 'Incomplete'}
                   </span>
-                ) : active ? (
-                  <Check size={16} />
+                ) : recommended ? (
+                  <span className="recommended-tag">
+                    <Check size={12} />
+                    Recommended
+                  </span>
                 ) : (
-                  <ArrowRight size={15} />
+                  <span className="alternative-tag">
+                    {extra > 0.5 ? `+${fmt(extra, lang)} min` : 'Fastest'}
+                  </span>
                 )}
               </div>
               <div className="route-metrics">
                 <strong>{duration(route.duration_seconds)}</strong>
                 <span>{fmt(route.distance_miles, lang)} mi</span>
               </div>
-              <div className="risk-strip" aria-label={t.exposure}>
+              <div className="route-exposure">
+                <span>{fmt(summary.miles_by_risk[3], lang, 1)} mi severe</span>
+                <span>{fmt(summary.miles_by_risk[2], lang, 1)} mi high</span>
+              </div>
+              <div className="risk-strip" aria-label="Estimated miles by risk category">
                 {summary.miles_by_risk.map(
                   (miles, risk) =>
                     miles > 0 && (
@@ -79,67 +65,45 @@ export default function RouteComparison({
                     ),
                 )}
                 {summary.unknown_miles > 0 && (
-                  <span style={{ flex: summary.unknown_miles, background: '#8b96a2' }} />
+                  <span style={{ flex: summary.unknown_miles, background: '#84909b' }} />
                 )}
               </div>
-              <div className="route-exposure">
-                <span>
-                  <i style={{ background: RISK_COLORS[3] }} />
-                  {fmt(summary.miles_by_risk[3], lang, 1)} mi {t.severe.toLowerCase()}
-                </span>
-                <span>
-                  <i style={{ background: RISK_COLORS[2] }} />
-                  {fmt(summary.miles_by_risk[2], lang, 1)} mi {t.high.toLowerCase()}
-                </span>
-              </div>
               <div className="route-secondary">
-                <span>
-                  {t.average}: <strong>{fmt(summary.average_risk, lang, 2)}</strong> / 4
-                </span>
-                <span>
-                  {extraMinutes > 0.5
-                    ? `+${fmt(extraMinutes, lang)} min`
-                    : lang === 'es'
-                      ? 'Más rápida'
-                      : 'Fastest'}
-                </span>
+                <span>Avg risk {fmt(summary.average_risk, lang, 2)} / 4</span>
+                {summary.status === 'blocked' && (
+                  <strong className="danger">
+                    {fmt(summary.miles_by_risk[4], lang, 1)} mi No Travel
+                  </strong>
+                )}
+                {summary.status === 'incomplete' && (
+                  <strong>{fmt(summary.unknown_miles, lang, 1)} mi unknown</strong>
+                )}
               </div>
-              {summary.status === 'blocked' && (
-                <span className="via-note danger">
-                  {fmt(summary.miles_by_risk[4], lang, 1)} mi · {t.blocked}
-                </span>
+              {route.via_comparison_point && (
+                <span className="via-note">Via comparison waypoint</span>
               )}
-              {route.via_comparison_point && <span className="via-note">{t.comparisonPoint}</span>}
-            </motion.button>
+            </button>
           )
         })}
       </div>
-      <p className="criteria-note">{t.criteria}</p>
     </section>
   )
 }
-
 export function RecommendationBanner({ data, lang }: { data: Analysis; lang: Language }) {
-  const t = copy[lang]
   const best = data.recommendation.route_id
   const extra = data.recommendation.decision.extra_minutes_vs_fastest ?? 0
   return (
-    <div className={`recommendation-banner ${best ? '' : 'warning'}`}>
-      <div className="recommendation-icon">
-        <ShieldAlert size={23} />
-      </div>
+    <div className={`recommendation-banner ${best ? '' : 'warning'}`} role="status">
+      {best ? <ShieldCheck size={22} /> : <ShieldAlert size={22} />}
       <div>
-        <span className="eyebrow">{t.why}</span>
         <h2>
-          {best ? `${t.route} ${routeNumber(data, best)} · ${t.recommended.toLowerCase()}` : t.none}
+          {best ? `Route ${routeNumber(data, best)} recommended` : 'No route can be recommended'}
         </h2>
         <p>{recommendationText(data, lang)}</p>
         {best && extra >= 0.5 && (
           <span className="time-tradeoff">
             <Clock3 size={13} />
-            {lang === 'es'
-              ? `${fmt(extra, lang)} min adicionales frente a la opción elegible más rápida.`
-              : `${fmt(extra, lang)} extra minutes versus the fastest eligible option.`}
+            {fmt(extra, lang)} min longer than the fastest eligible route.
           </span>
         )}
       </div>

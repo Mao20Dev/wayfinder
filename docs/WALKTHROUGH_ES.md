@@ -1,15 +1,15 @@
 # Preparación del Loom · Mauro graba personalmente
 
-Duración objetivo: 8 minutos. Usar ejemplos que puedas explicar y ejecutar. El video no se ha grabado automáticamente.
+Duración objetivo: 8 minutos. La aplicación está solo en inglés. Estas notas de preparación están en español; el recorrido de entrevista debe ensayarse en inglés. Usar ejemplos que puedas explicar y ejecutar. El video no se ha grabado automáticamente.
 
 | Minuto | Qué mostrar | Qué debes poder explicar |
 |---|---|---|
 | 0:00–0:45 | Pantalla principal y problema | Comparar clima a lo largo del tiempo de un viaje, no sólo en origen/destino. |
-| 0:45–2:00 | Ejemplo guiado Chicago–Detroit, carretera coloreada, etiquetas de clima y tres tarjetas | Geometría y tiempos registrados de OSRM; clima simulado. Mostrar la diferencia concreta que decide la recomendación y el tiempo adicional. |
+| 0:45–2:00 | Botón Try a Chicago → Detroit example, carretera coloreada, etiquetas y tres tarjetas | Geometría y tiempos registrados de OSRM; clima simulado. Mostrar la diferencia concreta que decide la recomendación y el tiempo adicional. |
 | 2:00–3:00 | Un punto y la tabla de puntos | Distancia sobre la ruta, ETA acumulada, unidades y peor condición. |
 | 3:00–4:00 | Cambiar carga y observar la reevaluación automática | Una regla concreta: 45 mph y más de 30,000 lb prohíbe viajar. El pronóstico se reutiliza sin llamadas nuevas. Mostrar un punto que realmente active esa regla. |
-| 4:00–5:00 | Cambiar de «Clima durante el viaje» a «Explorar próximas 48 h» y mover +0/+24/+48 | Hora común del corredor frente a ETA de cada punto. La exploración no altera salida ni recomendación. La perspectiva es visual, sin elevación real. |
-| 5:00–6:00 | Modo real | Consultar sólo una vez si la caché está fría; explicar que puede tardar. No fingir una tormenta en datos reales. |
+| 4:00–5:00 | Cambiar de Along the route a 48-hour forecast y mover +0/+24/+48 | Hora común del corredor frente a ETA de cada punto. La exploración no altera salida ni recomendación. La perspectiva es visual, sin elevación real. |
+| 5:00–6:00 | Use live weather o editar el viaje y Compare routes | Consultar sólo una vez si la caché está fría; explicar que puede tardar. No fingir una tormenta en datos reales. |
 | 6:00–7:15 | `risk.py`, un test de límites y arquitectura | Reglas puras, comparación por prioridades, datos desconocidos y API keys sólo en backend. |
 | 7:15–8:00 | Limitaciones y ejecución | Perfil car de OSRM, TomTom opcional, ausencia de descansos, servicios gratuitos y cómo arrancar. |
 

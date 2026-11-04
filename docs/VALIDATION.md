@@ -1,6 +1,6 @@
 # Validación de la versión local
 
-Fecha de trabajo: 3 de noviembre de 2026, Colombia. Estas comprobaciones no equivalen a una prueba de producción ni a una verificación de TomTom con cuenta real.
+Fecha de trabajo: 4 de noviembre de 2026, Colombia. Estas comprobaciones no equivalen a una prueba de producción ni a una verificación de TomTom con cuenta real.
 
 | Comprobación | Resultado observado |
 |---|---|
@@ -15,7 +15,7 @@ Fecha de trabajo: 3 de noviembre de 2026, Colombia. Estas comprobaciones no equi
 | Verificación visual | Se comprueban las dimensiones del canvas y píxeles del color de los tramos dentro del mapa, además de capturas. No basta con que exista el elemento HTML. |
 | Cambio de carga | Reevalúa el pronóstico guardado mediante `/api/reassess/`, sin volver a `/api/analyze/` ni llamar al clima. |
 | Dos referencias temporales | La exploración de +48 h no hace solicitudes al backend. La vista al paso recupera puntos y segmentos del viaje. |
-| Idiomas | Español e inglés, con la misma tabla y explicaciones de riesgo. |
+| Idioma y flujo | Solo inglés, incluso con una preferencia antigua en español. Inicio sin consultas automáticas, un solo selector de rutas y muestreo desplegable. |
 | Opera · viaje real | Búsqueda de Chicago y comparación desde el formulario: respuesta 200, tres rutas y datos completos. |
 | Vista móvil de 390 px | Sin desbordamiento horizontal. El mapa se ajusta al cambiar el ancho. |
 | JavaScript en recorrido probado | Sin errores de ejecución. |
@@ -28,7 +28,7 @@ Fecha de trabajo: 3 de noviembre de 2026, Colombia. Estas comprobaciones no equi
 - Los colores de carretera y las millas por riesgo comparten la función de clasificación de intervalos. Los segmentos conservan la geometría original y son continuos.
 - La recomendación identifica el primer criterio que decide la comparación, su diferencia numérica y el tiempo extra frente a la opción elegible más rápida.
 - Cada punto expone los factores y la regla estricta de carga que corresponde, sin sustituir una prohibición por una categoría menor.
-- El demo respeta la salida indicada. Las consultas del corredor al paso usan la ETA del punto cercano y lo explican como aproximación.
+- El ejemplo opcional respeta la salida indicada y se identifica como clima simulado. La vista principal utiliza tramos y puntos a su ETA; la capa de área se explora por separado en la vista de 48 horas.
 - El cambio de carga actualiza puntos, segmentos, resúmenes, ambas vistas meteorológicas y recomendación con una copia del pronóstico guardado.
 - La caché de análisis está separada, tiene UUID aleatorio, dura 15 minutos y conserva como máximo 24 resultados. Un viaje vencido responde con 410 y una instrucción para actualizarlo.
 - El límite de análisis reales está separado de búsqueda de ciudades, demo y reevaluación de carga.
@@ -47,4 +47,4 @@ Fecha de trabajo: 3 de noviembre de 2026, Colombia. Estas comprobaciones no equi
 - `check --deploy` bajo configuración de Render muestra W021 intencional: no se solicita HSTS preload para un dominio todavía no definido. HTTPS sí se activa en esa configuración.
 - La compilación informa de un chunk grande de MapLibre. Se carga de forma diferida y comprimida; no se oculta el aviso.
 
-Capturas y reporte de navegador: `artifacts/desktop.png`, `artifacts/perspective.png`, `artifacts/mobile.png`, `artifacts/live-desktop.png`, `artifacts/risk-road.png` y `artifacts/browser-validation.json`. No se incluyen en Git. Las capturas reales se toman antes de simular el mensaje 429.
+Capturas y reporte de navegador: `artifacts/planner-empty.png`, `artifacts/desktop.png`, `artifacts/perspective.png`, `artifacts/mobile.png`, `artifacts/live-desktop.png`, `artifacts/risk-road.png` y `artifacts/browser-validation.json`. No se incluyen en Git. Las capturas reales se toman antes de simular el mensaje 429.

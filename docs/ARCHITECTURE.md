@@ -59,7 +59,7 @@ El mismo servicio local entrega el frontend y la API. En desarrollo se puede usa
 
 La carretera coloreada y las millas por riesgo comparten la función `interval_risk`. La geometría de cada tramo conserva los vértices de la API entre los puntos de consulta. Así se evita una discrepancia entre lo que el mapa dibuja y lo que la recomendación calcula.
 
-La interfaz separa sus responsabilidades en formulario, comparación, detalles del viaje, reglas y mapa. El mapa y su CSS se cargan de forma diferida; el contenedor tiene dimensiones explícitas para evitar que el estilo de MapLibre colapse el canvas. Español e inglés comparten las mismas explicaciones estructuradas.
+La interfaz separa sus responsabilidades en formulario, comparación, detalles del viaje, reglas y mapa. El mapa y su CSS se cargan de forma diferida; el contenedor tiene dimensiones explícitas para evitar que el estilo de MapLibre colapse el canvas. La interfaz usa solo inglés. El inicio no ejecuta consultas automáticas: el usuario compara su viaje con clima real o abre explícitamente el ejemplo. Un único grupo de tarjetas controla la selección del mapa; las opciones de muestreo, reglas y tabla se revelan bajo demanda. Los detalles de cada punto aparecen sobre el mapa. El corredor con capas y deslizador se muestra en la vista independiente de 48 horas.
 
 ## Registro de decisiones
 
@@ -95,4 +95,4 @@ La interfaz separa sus responsabilidades en formulario, comparación, detalles d
 
 No afirmar que el riesgo es una predicción científica de accidentes, que OSRM garantiza acceso legal de un camión, que la capa difuminada tiene categorías exactas, que el modo demo muestra clima real, que el perfil opcional de TomTom fue probado con credenciales reales, ni que los tiempos incluyen descansos reglamentarios.
 
-En la preparaci?n de publicaci?n se deja HSTS preload desactivado intencionalmente: es una aplicaci?n nueva sin dominio definitivo y no se solicita una inclusi?n persistente en la lista de navegadores. `check --deploy` puede mostrar W021 por esa decisi?n. No implica una excepci?n al uso de HTTPS en Render.
+En la preparación de publicación se deja HSTS preload desactivado intencionalmente: es una aplicación nueva sin dominio definitivo y no se solicita una inclusión persistente en la lista de navegadores. `check --deploy` puede mostrar W021 por esa decisión. No implica una excepción al uso de HTTPS en Render.

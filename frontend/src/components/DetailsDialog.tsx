@@ -11,7 +11,6 @@ import {
 } from '../i18n'
 import type { Analysis, Checkpoint, Route } from '../types'
 import RiskBadge from './RiskBadge'
-
 export default function DetailsDialog({
   kind,
   data,
@@ -91,9 +90,9 @@ export default function DetailsDialog({
         ) : (
           <div className="method-content">
             <p>
-              {lang === 'es'
-                ? 'Elegimos el clima de cada punto según la hora a la que llegará el camión. El mapa del viaje colorea los tramos con esas condiciones; el explorador de 48 horas muestra una hora común en toda la zona.'
-                : 'Weather is sampled for the time the truck reaches each point. The trip map colors road segments using those conditions; the 48-hour explorer shows one common forecast hour across the area.'}
+              {
+                'Weather is sampled for the time the truck reaches each point. The trip map colors road segments using those conditions; the 48-hour explorer shows one common forecast hour across the area.'
+              }
             </p>
             <h3>{t.rulesTitle}</h3>
             <p>{t.rulesIntro}</p>
@@ -101,7 +100,7 @@ export default function DetailsDialog({
               <table className="checkpoint-table rules-table">
                 <thead>
                   <tr>
-                    <th>{lang === 'es' ? 'Condición' : 'Condition'}</th>
+                    <th>{'Condition'}</th>
                     {riskNames[lang].map((name) => (
                       <th key={name}>{name}</th>
                     ))}
@@ -115,11 +114,7 @@ export default function DetailsDialog({
                   ].map((row) => (
                     <tr key={row[0]}>
                       {row.map((value, i) =>
-                        i === 0 ? (
-                          <th key={i}>{value}</th>
-                        ) : (
-                          <td key={i}>{lang === 'es' ? value.replace(/\./g, ',') : value}</td>
-                        ),
+                        i === 0 ? <th key={i}>{value}</th> : <td key={i}>{value}</td>,
                       )}
                     </tr>
                   ))}
@@ -137,24 +132,22 @@ export default function DetailsDialog({
             <h3>{t.rankTitle}</h3>
             <p>{t.rankText}</p>
             <p>{t.approximation}</p>
-            <h3>
-              {lang === 'es' ? 'Qué significan las dos vistas' : 'What the two map views mean'}
-            </h3>
+            <h3>{'What the two map views mean'}</h3>
             <p>
               <strong>{t.arrival}.</strong> {t.arrivalHelp}
             </p>
             <p>
               <strong>{t.forecast}.</strong> {t.forecastHelp}
             </p>
-            <h3>{lang === 'es' ? 'Datos y límites' : 'Data and limits'}</h3>
+            <h3>{'Data and limits'}</h3>
             <p>{t.demoDescription}</p>
             <p>
               {t.carProfile} {t.noStops}
             </p>
             <p>
-              {lang === 'es'
-                ? 'Open-Meteo proporciona el pronóstico real. Los detalles del viaje identifican el proveedor de rutas; los desvíos por puntos intermedios se indican en sus tarjetas.'
-                : 'Open-Meteo supplies live forecasts. Trip details identify the routing provider; comparison-waypoint detours are labeled on route cards.'}
+              {
+                'Open-Meteo supplies live forecasts. Trip details identify the routing provider; comparison-waypoint detours are labeled on route cards.'
+              }
             </p>
           </div>
         )}

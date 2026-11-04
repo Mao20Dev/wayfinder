@@ -1,142 +1,6 @@
 import type { Analysis, Checkpoint, Route } from './types'
-
-export type Language = 'es' | 'en'
+export type Language = 'en'
 export const copy = {
-  es: {
-    planner: 'Planificador de rutas',
-    how: 'Cómo calculamos el riesgo',
-    language: 'Idioma',
-    eyebrow: 'EL CLIMA TAMBIÉN ES PARTE DEL CAMINO',
-    title: 'Elige una ruta con el clima a favor.',
-    intro: 'Dinos tu viaje. Comparamos las carreteras y el tiempo que encontrarás al pasar.',
-    step1: '1. Tu viaje',
-    step2: '2. Compara las rutas',
-    step3: 'EL CLIMA EN TU CAMINO',
-    liveMode: 'Mi viaje real',
-    demoMode: 'Ejemplo guiado',
-    demoBanner: 'Estás explorando un ejemplo con clima simulado.',
-    demoDescription:
-      'Las carreteras son reales; el clima se generó para probar las reglas. Cambia la carga o la salida y observa el resultado.',
-    startLive: 'Planificar mi viaje',
-    origin: 'Origen',
-    destination: 'Destino',
-    swap: 'Intercambiar',
-    departure: 'Fecha y hora de salida',
-    localTime: 'Hora de tu equipo',
-    cargo: 'Peso de la carga',
-    cargoHelp: 'Sólo la carga, sin incluir el peso del vehículo.',
-    sampling: 'Consultar el clima cada…',
-    samplingHelp: 'Son puntos de consulta en la carretera, no paradas del camión.',
-    detail: 'Más detalle',
-    balanced: 'Equilibrado',
-    fewer: 'Menos consultas',
-    analyze: 'Comparar rutas',
-    simulate: 'Actualizar ejemplo',
-    analyzing: 'Buscando rutas y pronósticos…',
-    loadUpdating: 'Actualizando el riesgo de la carga…',
-    loadUpdated: 'El cambio de carga usa el mismo pronóstico, sin nuevas consultas.',
-    waitHelp:
-      'Un viaje nuevo puede tardar unos segundos. Conservamos tus resultados mientras tanto.',
-    demoRoute: 'El ejemplo recorre Chicago → Detroit. Puedes probar distintas salidas y cargas.',
-    cargoError: 'Introduce una carga entre 0 y 200.000 lb.',
-    cityHint: 'Busca una ciudad y selecciónala en la lista.',
-    changed: 'El viaje cambió. Compara de nuevo para actualizar las rutas y el clima.',
-    showingPrevious: 'Mostrando el último viaje analizado',
-    route: 'Ruta',
-    recommended: 'Recomendada',
-    alternative: 'Alternativa',
-    blocked: 'No viajar',
-    incomplete: 'Sin datos completos',
-    exposure: 'Exposición estimada',
-    severe: 'Severo',
-    high: 'Alto',
-    average: 'Riesgo promedio',
-    distance: 'Distancia',
-    driving: 'Conducción',
-    coverage: 'Cobertura del pronóstico',
-    comparisonPoint: 'Desvío por punto intermedio',
-    why: 'Por qué recomendamos esta ruta',
-    none: 'No podemos recomendar una ruta con los datos actuales.',
-    noneHelp:
-      'Las rutas con «No viajar» o datos meteorológicos incompletos quedan fuera de la recomendación.',
-    arrival: 'Clima durante el viaje',
-    forecast: 'Explorar próximas 48 h',
-    arrivalHelp:
-      'La carretera muestra el riesgo previsto cuando llegues a cada tramo. La zona usa la hora de paso del punto de consulta más cercano.',
-    forecastHelp:
-      'Toda la zona muestra la misma hora. Explorar este mapa no cambia tu salida ni la recomendación.',
-    weather: 'Riesgo',
-    wind: 'Viento',
-    rain: 'Lluvia',
-    snow: 'Nieve',
-    risk: 'Riesgo',
-    roadLegend: 'Riesgo de la carretera al pasar',
-    regionLegend: 'Pronóstico de la zona',
-    unknown: 'Sin datos',
-    lower: 'Menor',
-    higher: 'Mayor',
-    smooth: 'Intensidad relativa · capa suavizada',
-    forecastTime: 'Hora del pronóstico',
-    reference: 'Hora base',
-    clickMap: 'Toca un punto o una etiqueta para ver el clima y la regla aplicada.',
-    points: 'Ver puntos de clima',
-    close: 'Cerrar',
-    arrivalTime: 'Llegada estimada',
-    atMile: 'A la altura de',
-    ruleApplied: 'Por qué tiene este riesgo',
-    pointDetail: 'Clima al pasar por este punto',
-    pointHelp:
-      'Este pronóstico corresponde a tu hora de llegada, no a la hora del mapa exploratorio.',
-    nextPoint: 'Siguiente punto',
-    previousPoint: 'Punto anterior',
-    tableHelp:
-      'Cada fila es una consulta meteorológica sobre la ruta. Las horas se muestran en la zona del origen.',
-    mile: 'Milla',
-    noStops: 'Los tiempos de conducción no incluyen descansos.',
-    source: 'Datos',
-    carProfile:
-      'Las rutas actuales usan un perfil de automóvil. No verifican altura, peso bruto ni acceso legal para camiones.',
-    dataWarning: 'Faltan algunos pronósticos. Lo desconocido no se considera seguro.',
-    mapUnavailable:
-      'No se pudo cargar el mapa. Puedes seguir comparando rutas en las tarjetas y la tabla.',
-    mapLoading: 'Preparando el mapa…',
-    zoomIn: 'Acercar',
-    zoomOut: 'Alejar',
-    fit: 'Ver todas las rutas',
-    perspective: 'Vista en perspectiva',
-    overlay: 'Mostrar capa meteorológica',
-    play: 'Reproducir pronóstico',
-    pause: 'Pausar pronóstico',
-    methodTitle: 'De los datos a una recomendación',
-    rulesTitle: 'Reglas de riesgo del ejercicio',
-    rulesIntro:
-      'Se usa la condición más peligrosa del punto. La carga puede elevar el riesgo por viento.',
-    boundaries:
-      'En los extremos compartidos de lluvia y nieve elegimos la categoría superior, salvo los límites explícitos de «No viajar». Es un supuesto documentado.',
-    loadRules: 'Reglas adicionales por carga',
-    wind55: 'Viento ≥55 mph: no viajar con ninguna carga.',
-    wind45: 'Viento de 45 a <55 mph y carga >30.000 lb: no viajar.',
-    wind35: 'Viento de 35 a <45 mph y carga >40.000 lb: riesgo severo.',
-    exactLoads: 'Exactamente 30.000 o 40.000 lb no activa su respectiva condición estricta.',
-    rankTitle: 'Cómo se elige una ruta',
-    rankText:
-      'Primero se excluyen las rutas con No viajar o datos incompletos. Después se compara, en este orden: millas severas, millas altas, promedio ponderado por distancia y duración.',
-    approximation:
-      'La exposición es una estimación: cada tramo usa el mayor riesgo de sus dos extremos. No representa la extensión exacta de una tormenta.',
-    noTravelMiles: 'No viajar',
-    adjustedCargo: 'El riesgo incluye la regla de carga.',
-    graphTitle: 'Clima a lo largo del viaje',
-    graphHelp: 'La posición sigue las millas de carretera; cada punto usa su hora de llegada.',
-    loadingEmpty: 'Estamos preparando las opciones de tu viaje.',
-    retry: 'Volver a intentar',
-    errorNetwork: 'No pudimos completar la consulta. Comprueba la conexión e inténtalo otra vez.',
-    errorExpired: 'El pronóstico guardado venció. Compara el viaje de nuevo para actualizarlo.',
-    cancel: 'Cancelar consulta',
-    viewResults: 'Ver resultados',
-    more: 'Detalles y proveedores',
-    criteria:
-      'Prioridad: menos millas severas → menos millas altas → menor promedio → menos tiempo.',
-  },
   en: {
     planner: 'Route planner',
     how: 'How risk is calculated',
@@ -195,7 +59,7 @@ export const copy = {
     arrival: 'Weather during your trip',
     forecast: 'Explore next 48 hours',
     arrivalHelp:
-      'The road shows the risk when you reach each segment. Nearby weather uses the arrival time of the closest weather checkpoint.',
+      'The road shows estimated weather risk when you reach each segment. Select a point for its forecast and arrival time.',
     forecastHelp:
       'The whole area shows a single forecast hour. Exploring this map does not change your departure or recommendation.',
     weather: 'Risk',
@@ -267,19 +131,16 @@ export const copy = {
     criteria: 'Priority: fewer Severe miles → fewer High miles → lower average → shorter time.',
   },
 }
-
 export const riskNames = {
-  es: ['Bajo', 'Moderado', 'Alto', 'Severo', 'No viajar'],
   en: ['Low', 'Moderate', 'High', 'Severe', 'No Travel'],
 }
-export const fmt = (value: number | null | undefined, lang: Language, digits = 0) =>
+export const fmt = (value: number | null | undefined, _lang: Language, digits = 0) =>
   value == null
     ? '—'
-    : value.toLocaleString(lang === 'es' ? 'es-CO' : 'en-US', {
+    : value.toLocaleString('en-US', {
         minimumFractionDigits: digits,
         maximumFractionDigits: digits,
       })
-
 export function weatherNumber(
   value: number | null,
   kind: string,
@@ -303,10 +164,10 @@ export function weatherNumber(
     )
       return fmt(value, lang, digits)
   }
-  return lang === 'es' ? String(value).replace('.', ',') : String(value)
+  return String(value)
 }
-export const timeAt = (epoch: number, zone: string, lang: Language, date = false) =>
-  new Intl.DateTimeFormat(lang === 'es' ? 'es-CO' : 'en-US', {
+export const timeAt = (epoch: number, zone: string, _lang: Language, date = false) =>
+  new Intl.DateTimeFormat('en-US', {
     timeZone: zone,
     hour: 'numeric',
     minute: '2-digit',
@@ -314,7 +175,6 @@ export const timeAt = (epoch: number, zone: string, lang: Language, date = false
   }).format(epoch * 1000)
 export const routeNumber = (data: Analysis, id: string) =>
   data.routes.findIndex((route) => route.id === id) + 1
-
 export function recommendationText(data: Analysis, lang: Language) {
   const decision = data.recommendation.decision
   const t = copy[lang]
@@ -322,56 +182,33 @@ export function recommendationText(data: Analysis, lang: Language) {
   const other = decision.comparison_route_id ? routeNumber(data, decision.comparison_route_id) : 0
   const advantage = decision.advantage ?? 0
   if (!n) return t.noneHelp
-  if (decision.criterion === 'tie')
-    return lang === 'es'
-      ? 'Las rutas destacadas empatan en los cuatro criterios. Puedes elegir cualquiera de ellas.'
-      : 'The highlighted routes tie on all four criteria. You can choose either.'
+  if (decision.criterion === 'tie') return 'The recommended routes tie on risk and driving time.'
   if (decision.criterion === 'only_eligible')
-    return lang === 'es'
-      ? `La ruta ${n} es la única con pronóstico completo y sin tramos de «No viajar».`
-      : `Route ${n} is the only option with complete weather and no No Travel segments.`
+    return `Route ${n} is the only option with complete weather and no No Travel segments.`
   const value =
     advantage > 0 && advantage < 0.01
       ? '<0.01'
       : fmt(advantage, lang, decision.criterion === 'average_risk' ? 2 : 1)
-  const descriptions: Record<string, string> =
-    lang === 'es'
-      ? {
-          severe_miles: `${value} millas menos de riesgo severo`,
-          high_miles: `${value} millas menos de riesgo alto`,
-          average_risk: `un riesgo promedio ${value} menor, al empatar en millas severas y altas`,
-          duration_seconds: `un tiempo menor de conducción, al empatar en los tres criterios de riesgo`,
-        }
-      : {
-          severe_miles: `${value} fewer Severe miles`,
-          high_miles: `${value} fewer High miles`,
-          average_risk: `an average risk ${value} lower, after tying on Severe and High miles`,
-          duration_seconds: `a shorter drive after tying on all three risk criteria`,
-        }
-  return lang === 'es'
-    ? `Frente a la siguiente opción elegible, la ruta ${other}, ofrece ${descriptions[decision.criterion]}.`
-    : `Compared with the next eligible option, Route ${other}, it has ${descriptions[decision.criterion]}.`
+  const descriptions: Record<string, string> = {
+    severe_miles: `${value} fewer Severe miles`,
+    high_miles: `${value} fewer High miles`,
+    average_risk: `Average risk is ${value} lower, with equal Severe and High exposure`,
+    duration_seconds: `A shorter drive, with equal weather risk`,
+  }
+  return decision.criterion === 'severe_miles' || decision.criterion === 'high_miles'
+    ? `${descriptions[decision.criterion]} than Route ${other}.`
+    : `Compared with Route ${other}: ${descriptions[decision.criterion]}.`
 }
-
 export function pointExplanation(cp: Checkpoint, load: number, lang: Language) {
   const w = cp.weather
-  const es = lang === 'es'
   if (cp.cargo_rule === 'wind_55')
-    return es
-      ? `Viento de ${weatherNumber(w.wind_mph, 'wind', lang)} mph: desde 55 mph se indica no viajar con ninguna carga.`
-      : `${weatherNumber(w.wind_mph, 'wind', lang)} mph wind: 55+ mph means No Travel for any load.`
+    return `${weatherNumber(w.wind_mph, 'wind', lang)} mph wind: 55+ mph means No Travel for any load.`
   if (cp.cargo_rule === 'wind_45_load_30000')
-    return es
-      ? `Viento de ${weatherNumber(w.wind_mph, 'wind', lang)} mph con ${fmt(load, lang)} lb de carga. Supera 30.000 lb en el rango de 45–<55 mph: no viajar.`
-      : `${weatherNumber(w.wind_mph, 'wind', lang)} mph wind with ${fmt(load, lang)} lb cargo. Above 30,000 lb at 45–<55 mph means No Travel.`
+    return `${weatherNumber(w.wind_mph, 'wind', lang)} mph wind with ${fmt(load, lang)} lb cargo. Above 30,000 lb at 45–<55 mph means No Travel.`
   if (cp.cargo_rule === 'wind_35_load_40000' && cp.risk === 3)
-    return es
-      ? `La carga supera 40.000 lb con viento de 35–<45 mph. La regla eleva el riesgo de alto a severo.`
-      : 'Cargo exceeds 40,000 lb with 35–<45 mph wind. The load rule raises High risk to Severe.'
+    return 'Cargo exceeds 40,000 lb with 35–<45 mph wind. The load rule raises High risk to Severe.'
   if (cp.risk === null)
-    return es
-      ? 'Faltan datos para evaluar este punto. No se considera seguro por defecto.'
-      : 'Missing data prevents a full assessment. This point is not assumed safe.'
+    return 'Missing data prevents a full assessment. This point is not assumed safe.'
   const drivers = cp.drivers
     .map((key) =>
       key === 'wind'
@@ -381,11 +218,8 @@ export function pointExplanation(cp: Checkpoint, load: number, lang: Language) {
           : `${copy[lang].snow.toLowerCase()} ${weatherNumber(w.snow_in_hr, 'snow', lang)} in/h`,
     )
     .join(' · ')
-  return es
-    ? `La condición que determina el nivel ${riskNames.es[cp.risk].toLowerCase()} es: ${drivers}.`
-    : `The condition determining ${riskNames.en[cp.risk]} risk is: ${drivers}.`
+  return `The condition determining ${riskNames.en[cp.risk]} risk is: ${drivers}.`
 }
-
 export function dominantWeather(cp: Checkpoint) {
   if (cp.drivers.includes('wind') && (cp.risk ?? 0) >= 1)
     return { kind: 'wind', value: cp.weather.wind_mph, unit: 'mph' }
@@ -395,15 +229,6 @@ export function dominantWeather(cp: Checkpoint) {
     return { kind: 'rain', value: cp.weather.rain_in_hr, unit: 'in/h' }
   return { kind: 'wind', value: cp.weather.wind_mph, unit: 'mph' }
 }
-
-export function initialLanguage(): Language {
-  try {
-    return localStorage.getItem('wayfinder-language') === 'en' ? 'en' : 'es'
-  } catch {
-    return 'es'
-  }
-}
-
 export function slowestExtra(route: Route, data: Analysis) {
   return (route.duration_seconds - Math.min(...data.routes.map((r) => r.duration_seconds))) / 60
 }

@@ -21,16 +21,28 @@ For frontend development, run Django on port 8000 and `npm run dev --prefix fron
 
 ## Try the application
 
-- The UI opens in **Spanish**, with an **EN** switch for an English walkthrough. Both languages have the same controls and risk explanations.
-- **Ejemplo guiado / Guided example** starts automatically: three recorded OSRM road routes from Chicago to Detroit with clearly labeled **synthetic weather**. The cities are fixed; departure, cargo and spacing can be changed. Departure is respected. No forecast calls occur.
-- **Mi viaje real / My real trip** searches cities, calculates actual road routes and fetches Open-Meteo hourly forecasts. The default provider needs no API key. Select cities from suggestions, choose a future departure and compare. A cold trip can take tens of seconds because requests are batched and paced.
-- **Weather during your trip** colors the selected road by estimated arrival-time risk. Labels show weather and ETA. Nearby cells use the ETA of their closest weather checkpoint, an explicitly approximate view of the corridor. Other routes remain visible and selectable.
-- **Explore next 48 hours** has a separate timeline. The area shows a common forecast hour; scrubbing does not change the departure or recommendation and makes no API requests. Road colors become neutral in this view.
-- Changing only cargo automatically reassesses the stored forecast through Django. It does **not** call routing/weather providers or consume live-analysis quota. Saved analyses expire after 15 minutes and the cache holds at most 24 trips; an expired trip prompts a fresh comparison.
-- The recommendation explains the deciding numerical difference against the next eligible route and shows the time cost relative to the fastest eligible option. Exact ranking priorities are unchanged.
-- Select a road point, weather label or interval in the trip strip for its forecast and applied cargo/risk rule. The full table includes these explanations. The perspective button tilts the map; it does not represent real terrain.
+- The interface is **English only**. The initial screen is a trip form and map, with **no automatic analysis** and no routing or weather calls until you request routes.
+- Enter origin, destination, departure and cargo weight, then **Compare routes**. City suggestions use live geocoding; choose a suggestion to resolve coordinates. Live weather is the default.
+- **Weather sampling** expands to the required 10/25/50-mile interval choices. The default is 25 miles. These are forecast lookups, not truck stops.
+- A single set of route cards shows driving time, distance, estimated Severe/High miles, and distance-weighted average risk. The recommendation explains the deciding difference and any time cost. Select a card or a road to inspect that route.
+- **Along the route** colors the selected road using weather at each point's estimated arrival. Labels show weather and ETA. Selecting a point opens its forecast and applied rule directly over the map; **Weather details** opens the complete table.
+- **48-hour forecast** exposes the corridor heatmap, Risk/Wind/Rain/Snow layers and a 0–48-hour slider. The whole area shows a common forecast hour. Scrubbing does not change departure or recommendation and makes no API requests. Roads are neutral in this view.
+- **Risk rules** opens the full threshold and cargo-rule tables. Provider information and assumptions sit behind **Trip & data sources**; the car-profile limitation remains visible.
+- **Try a Chicago → Detroit example** is optional and explicitly uses synthetic weather over three recorded OSRM road routes. It does not call forecast providers. **Use live weather** compares the trip against Open-Meteo instead.
+- Changing only cargo automatically reassesses the stored forecast through Django without new routing/weather calls. Saved analyses expire after 15 minutes and the cache holds at most 24 trips; an expired trip prompts a fresh comparison.
 
 Live analysis is limited separately to four requests/minute; demo exploration and city searches do not consume that counter. The UI preserves current results and shows a countdown when live analysis is temporarily limited.
+
+## Assessment requirements in the interface
+
+| Required behavior | Where to find it |
+|---|---|
+| Origin, destination, departure, cargo | Trip form; live forecasts are the default. |
+| Three routing API alternatives and comparison | One set of selectable route cards, all routes on the map. |
+| Weather every 10/25/50 miles at checkpoint ETA | Weather sampling options; map labels and Weather details table. |
+| Weather thresholds and cargo overrides | Risk rules; applied rule when selecting a weather point. |
+| Severe miles, High miles, weighted average, duration ranking | Route cards and the recommendation's deciding difference. |
+| Corridor heatmap and 0–48-hour exploration | 48-hour forecast, with Risk/Wind/Rain/Snow layers and slider. |
 
 **Provider distinction:** without `TOMTOM_API_KEY`, routes use the public OSRM **car profile**. Truck dimensions, legal truck access, gross weight and driving breaks are not modeled. Cargo is used only in the supplied weather-risk rules. When natural alternatives are scarce, up to two API requests via explicit comparison waypoints may supply additional genuine routes. These detours are labeled. If fewer than three distinct routes are available, the app displays the actual count and does not duplicate routes.
 
@@ -66,7 +78,7 @@ npm test --prefix frontend
 
 Tests cover exact weather boundaries, decimal winds, strict cargo thresholds, unknown data, distance-weighted aggregation, ranking priorities and explanations, ties, ETA sampling, polyline continuity and risk colors, unit conversions, forecast intervals, provider contracts, cached cargo reassessment, input validation, API errors and separate throttling scopes. Unit tests do not depend on live provider availability.
 
-`scripts/check_opera.py` runs additional checks using installed Opera with an isolated temporary profile. It needs Python Playwright and Pillow and does not use global input, existing tabs or the clipboard. It checks nonzero canvas size, actual colored road pixels, weather labels, both languages, mobile layout, a real live trip, cargo reassessment without a new forecast and countdown feedback. The final 429 feedback check uses an explicitly mocked response. Screenshots and the test report are written to ignored `artifacts/`.
+`scripts/check_opera.py` runs additional checks using installed Opera with an isolated temporary profile. It needs Python Playwright and Pillow and does not use global input, existing tabs or the clipboard. It checks nonzero canvas size, actual colored road pixels, weather labels, English despite an old Spanish preference, collapsed options, a single route selector, mobile layout, a real live trip, cargo reassessment without a new forecast and countdown feedback. The final 429 feedback check uses an explicitly mocked response. Screenshots and the test report are written to ignored `artifacts/`.
 
 ## Repository map
 

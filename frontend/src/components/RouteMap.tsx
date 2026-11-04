@@ -17,15 +17,12 @@ import {
   type Language,
 } from '../i18n'
 import 'maplibre-gl/dist/maplibre-gl.css'
-
 maplibregl.setWorkerUrl(workerUrl)
-
 const empty: FeatureCollection = { type: 'FeatureCollection', features: [] }
 const featureCollection = (features: FeatureCollection['features']): FeatureCollection => ({
   type: 'FeatureCollection',
   features,
 })
-
 export default function RouteMap({
   data,
   selected,
@@ -56,14 +53,15 @@ export default function RouteMap({
   const [ready, setReady] = useState(false)
   const [mapError, setMapError] = useState('')
   const [threeD, setThreeD] = useState(false)
-  const [cellInfo, setCellInfo] = useState<{ coordinates: [number, number]; text: string } | null>(
-    null,
-  )
+  const [compact, setCompact] = useState(false)
+  const [cellInfo, setCellInfo] = useState<{
+    coordinates: [number, number]
+    text: string
+  } | null>(null)
   const popup = useRef<maplibregl.Popup | null>(null)
   const pins = useRef<maplibregl.Marker[]>([])
   const t = copy[lang]
   const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
-
   useEffect(() => {
     if (!container.current) return
     let instance: MapInstance
@@ -282,6 +280,7 @@ export default function RouteMap({
     const resize = new ResizeObserver(() => {
       instance.resize()
       const width = container.current?.clientWidth ?? 0
+      setCompact(width < 500)
       if (Math.abs(width - previousWidth) > 100 && callbacks.current.data) {
         const bounds = new maplibregl.LngLatBounds()
         callbacks.current.data.routes.forEach((route) =>
@@ -304,7 +303,6 @@ export default function RouteMap({
       setReady(false)
     }
   }, [])
-
   useEffect(() => {
     if (!ready || !map.current || !data) return
     const instance = map.current
@@ -383,7 +381,6 @@ export default function RouteMap({
       ]),
     )
   }, [data, selected, ready, view, lang])
-
   useEffect(() => {
     if (!ready || !map.current || !data) return
     const bounds = new maplibregl.LngLatBounds()
@@ -396,7 +393,6 @@ export default function RouteMap({
     // A cargo reassessment preserves geometry and should not reset a driver's zoom.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data?.analysis_id, ready])
-
   useEffect(() => {
     if (!ready || !map.current || !data) return
     const features: FeatureCollection['features'] = []
@@ -449,32 +445,42 @@ export default function RouteMap({
       map.current.setLayoutProperty(id, 'visibility', heatVisible ? 'visible' : 'none')
     popup.current?.remove()
   }, [data, selected, hour, layer, heatVisible, ready, view, lang])
-
   useEffect(() => {
     pins.current.forEach((pin) => pin.remove())
     pins.current = []
     if (!map.current || !ready || !data || view !== 'arrival') return
     const route = data.routes.find((route) => route.id === selected)
     if (!route) return
-    const maximum = container.current && container.current.clientWidth < 500 ? 3 : 5
+    const maximum = compact ? 3 : 4
     const points = route.checkpoints.slice(1, -1)
     if (!points.length) return
-    const indices = new Set<number>()
-    for (let i = 0; i < maximum; i++)
-      indices.add(Math.min(points.length - 1, Math.floor(((i + 0.5) * points.length) / maximum)))
     const worst = points.reduce(
       (best, point, index) => ((point.risk ?? -1) > (points[best].risk ?? -1) ? index : best),
       0,
     )
-    indices.add(worst)
+    // Always include the worst conditions, then fill the remaining slots across
+    // the route. Keep a fixed label budget so the map stays readable on mobile.
+    const indices = new Set<number>()
+    for (let i = 0; i < maximum; i++)
+      indices.add(Math.min(points.length - 1, Math.floor(((i + 0.5) * points.length) / maximum)))
+    if (!indices.has(worst)) {
+      const nearest = Array.from(indices).reduce((best, index) =>
+        Math.abs(points[index].mile - points[worst].mile) <
+        Math.abs(points[best].mile - points[worst].mile)
+          ? index
+          : best,
+      )
+      indices.delete(nearest)
+      indices.add(worst)
+    }
     const icons = {
       wind: '<path d="M3 8h11a3 3 0 1 0-3-3M2 12h17a3 3 0 1 1-3 3M4 17h5"/>',
       rain: '<path d="M6 14a5 5 0 1 1 9-7 4 4 0 1 1 1 7M8 17l-1 3m6-3-1 3m6-3-1 3"/>',
       snow: '<path d="M12 2v20M3 7l18 10M3 17 21 7M8 4l4 3 4-3M8 20l4-3 4 3"/>',
     }
     Array.from(indices)
-      .slice(0, maximum + 1)
-      .forEach((index) => {
+      .sort((a, b) => a - b)
+      .forEach((index, labelIndex) => {
         const point = points[index]
         const weather = dominantWeather(point)
         const button = document.createElement('button')
@@ -502,7 +508,11 @@ export default function RouteMap({
           callbacks.current.onCheckpoint(point)
         })
         pins.current.push(
-          new maplibregl.Marker({ element: button, anchor: 'bottom', offset: [0, -9] })
+          new maplibregl.Marker({
+            element: button,
+            anchor: compact && labelIndex % 2 ? 'top' : 'bottom',
+            offset: [0, compact && labelIndex % 2 ? 9 : -9],
+          })
             .setLngLat(point.coordinates)
             .addTo(map.current!),
         )
@@ -511,8 +521,7 @@ export default function RouteMap({
       pins.current.forEach((pin) => pin.remove())
       pins.current = []
     }
-  }, [data, selected, view, ready, lang, focusedPoint?.id])
-
+  }, [data, selected, view, ready, lang, focusedPoint?.id, compact])
   useEffect(() => {
     if (!cellInfo || !map.current) return
     popup.current?.remove()
@@ -524,14 +533,12 @@ export default function RouteMap({
       .setDOMContent(content)
       .addTo(map.current)
   }, [cellInfo])
-
   function fit() {
     if (!map.current || !data) return
     const bounds = new maplibregl.LngLatBounds()
     data.routes.forEach((route) => route.coordinates.forEach((p) => bounds.extend(p)))
     map.current.fitBounds(bounds, { padding: 90, duration: reduceMotion() ? 0 : 500 })
   }
-
   function toggle3D() {
     if (!map.current) return
     map.current.easeTo({
@@ -541,7 +548,6 @@ export default function RouteMap({
     })
     setThreeD(!threeD)
   }
-
   return (
     <div className="map-shell">
       <div className="map-canvas" ref={container} aria-label={t.step3} />
@@ -596,7 +602,7 @@ export default function RouteMap({
         target="_blank"
         rel="noreferrer"
       >
-        {lang === 'es' ? 'Mejorar este mapa' : 'Improve this map'} ↗
+        {'Improve this map'} ↗
       </a>
     </div>
   )

@@ -9,10 +9,10 @@ describe('clear trip explanations', () => {
   })
   it('keeps a just-above No Travel rain rate visibly above its strict limit', () => {
     expect(weatherNumber(1.001, 'rain', 'en')).toBe('1.001')
-    expect(weatherNumber(0.099, 'rain', 'es')).toBe('0,099')
+    expect(weatherNumber(0.099, 'rain', 'en')).toBe('0.099')
   })
   it('keeps missing weather visibly unknown', () => {
-    expect(weatherNumber(null, 'snow', 'es')).toBe('—')
+    expect(weatherNumber(null, 'snow', 'en')).toBe('—')
   })
   it('shows dangerous wind ahead of a trace of snow on the road label', () => {
     const point = {
@@ -22,8 +22,8 @@ describe('clear trip explanations', () => {
     } as Checkpoint
     expect(dominantWeather(point)).toEqual({ kind: 'wind', value: 56, unit: 'mph' })
   })
-  it('keeps both presentation languages complete', () => {
-    expect(Object.keys(copy.es).sort()).toEqual(Object.keys(copy.en).sort())
+  it('ships English presentation only', () => {
+    expect(Object.keys(copy)).toEqual(['en'])
   })
   it('explains the deciding risk difference against the actual runner-up', () => {
     const data = {
@@ -33,7 +33,7 @@ describe('clear trip explanations', () => {
         decision: { criterion: 'severe_miles', comparison_route_id: 'route-2', advantage: 25 },
       },
     } as Analysis
-    expect(recommendationText(data, 'es')).toContain('25,0 millas menos de riesgo severo')
+    expect(recommendationText(data, 'en')).toContain('25.0 fewer Severe miles')
     expect(recommendationText(data, 'en')).toContain('Route 2')
   })
   it('does not claim a cargo override won when rain was the blocking factor', () => {
@@ -43,12 +43,12 @@ describe('clear trip explanations', () => {
       drivers: ['rain'],
       weather: { wind_mph: 36, rain_in_hr: 1.2, snow_in_hr: 0 },
     } as Checkpoint
-    expect(pointExplanation(cp, 45000, 'es')).toContain('lluvia')
-    expect(pointExplanation(cp, 45000, 'es')).not.toContain('eleva el riesgo de alto')
+    expect(pointExplanation(cp, 45000, 'en')).toContain('rain')
+    expect(pointExplanation(cp, 45000, 'en')).not.toContain('raises High risk')
   })
   it('explains unknown weather instead of labeling it safe', () => {
-    expect(pointExplanation({ risk: null, cargo_rule: null } as Checkpoint, 0, 'es')).toContain(
-      'Faltan datos',
+    expect(pointExplanation({ risk: null, cargo_rule: null } as Checkpoint, 0, 'en')).toContain(
+      'Missing data',
     )
   })
 })

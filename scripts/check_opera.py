@@ -34,6 +34,7 @@ with sync_playwright() as p:
         ],
     )
     context = browser.new_context(viewport={"width": 1440, "height": 1100}, device_scale_factor=1)
+    context.add_init_script("localStorage.setItem('wayfinder-language', 'es')")
     page = context.new_page()
     errors, requests = [], []
     page.on("pageerror", lambda error: errors.append(str(error)))
@@ -42,72 +43,93 @@ with sync_playwright() as p:
         lambda request: requests.append(request.url.split("8000")[-1]) if "/api/" in request.url else None,
     )
     page.goto("http://127.0.0.1:8000/", wait_until="networkidle", timeout=60000)
+    assert page.locator("html").get_attribute("lang") == "en"
+    assert page.locator(".language-switch").count() == 0
+    assert page.get_by_role("button", name="Compare routes", exact=True).is_enabled()
+    assert not requests, "Opening the planner must not trigger an automatic weather request"
+    assert not page.locator(".trip-options").get_attribute("open")
+    page.screenshot(path=str(ARTIFACTS / "planner-empty.png"), full_page=True)
+    page.locator(".trip-options summary").click()
+    page.get_by_role("button", name="10 mi", exact=True).click()
+    assert "10 mi" in page.locator(".trip-options summary").inner_text()
+    page.get_by_role("button", name="25 mi", exact=True).click()
+    page.locator(".trip-options summary").click()
+    page.get_by_role("button", name="Try a Chicago", exact=False).click()
     page.locator(".route-card").nth(2).wait_for(timeout=30000)
+    assert page.locator(".route-card").count() == 3
+    assert page.locator(".map-route-picker").count() == 0
+    assert page.locator(".mode-switch").count() == 0
+    assert page.get_by_role("button", name="Use live weather", exact=True).is_visible()
     page.wait_for_function("!document.querySelector('.map-loading')", timeout=60000)
     canvas = page.locator(".maplibregl-canvas")
     box = canvas.bounding_box()
     assert box and box["width"] > 300 and box["height"] > 400, "Map canvas has a zero or undersized viewport"
-    assert page.locator("html").get_attribute("lang") == "es"
+    assert page.locator("html").get_attribute("lang") == "en"
     assert page.locator(".weather-pin").count() >= 3
     page.locator(".map-stage").screenshot(path=str(ARTIFACTS / "risk-road.png"))
     colors = Counter(Image.open(ARTIFACTS / "risk-road.png").convert("RGB").getdata())
     assert colors[(40, 132, 108)] > 100, "The map must render actual green road risk segments"
     page.screenshot(path=str(ARTIFACTS / "desktop.png"), full_page=True)
 
-    page.locator(".map-route-picker button").nth(1).click()
+    page.locator(".route-card").nth(1).click()
     assert page.locator(".route-card").nth(1).get_attribute("aria-pressed") == "true"
     page.locator(".weather-pin").first.click()
     assert page.locator(".point-rule").is_visible()
     assert page.locator(".point-rule p").first.inner_text()
-    page.locator(".point-detail").get_by_role("button", name="Cerrar", exact=True).click()
-    page.get_by_role("button", name="Ver puntos de clima", exact=True).click()
+    page.screenshot(path=str(ARTIFACTS / "point-details.png"), full_page=True)
+    page.locator(".point-detail").get_by_role("button", name="Close point details", exact=True).click()
+    page.get_by_role("button", name="Weather details", exact=True).click()
     assert page.locator(".checkpoint-table tbody tr").count() > 5
-    page.get_by_role("button", name="Cerrar", exact=True).click()
+    page.get_by_role("button", name="Close", exact=True).click()
 
     before = sum("/api/analyze/" in url for url in requests)
     with page.expect_response(lambda response: "/api/reassess/" in response.url) as reassessment:
-        page.get_by_role("spinbutton", name="Peso de la carga", exact=True).fill("45000")
+        page.get_by_role("spinbutton", name="Cargo weight", exact=True).fill("45000")
     assert reassessment.value.status == 200
     changed = reassessment.value.json()
     assert changed["load_lb"] == 45000
     page.wait_for_function("document.querySelector('.results-column').getAttribute('aria-busy') === 'false'")
+    assert page.locator(".route-card").nth(1).get_attribute("aria-pressed") == "true", (
+        "Cargo changes must keep the manually selected route"
+    )
     assert sum("/api/analyze/" in url for url in requests) == before, (
         "Cargo changes must reuse the saved forecast"
     )
 
     count = len(requests)
-    page.get_by_role("button", name="Explorar próximas 48 h", exact=True).click()
-    slider = page.get_by_role("slider", name="Explorar próximas 48 h", exact=True)
+    page.get_by_role("button", name="48-hour forecast", exact=True).click()
+    slider = page.get_by_role("slider", name="Forecast hour", exact=True)
     slider.focus()
     slider.press("End")
     assert slider.input_value() == "48"
     assert page.locator(".weather-pin").count() == 0
     assert len(requests) == count, "Forecast scrubbing must not call the backend"
-    page.get_by_role("button", name="Vista en perspectiva", exact=True).click()
-    page.get_by_role("button", name="Viento", exact=True).click()
+    page.get_by_role("button", name="Perspective view", exact=True).click()
+    page.get_by_role("button", name="Wind", exact=True).click()
     page.screenshot(path=str(ARTIFACTS / "perspective.png"), full_page=True)
-    page.get_by_role("button", name="Clima durante el viaje", exact=True).click()
+    page.get_by_role("button", name="Along the route", exact=True).click()
     assert page.locator(".weather-pin").count() >= 3
+    page.get_by_role("button", name="Perspective view", exact=True).click()
 
-    page.get_by_role("button", name="EN", exact=True).click()
     assert page.locator("html").get_attribute("lang") == "en"
-    page.get_by_role("button", name="How risk is calculated", exact=True).first.click()
+    page.get_by_role("button", name="Risk rules", exact=True).first.click()
     page.get_by_role("heading", name="Assessment risk rules", exact=True).wait_for()
     assert page.locator(".rules-table tbody tr").count() == 3
     page.get_by_role("button", name="Close", exact=True).click()
     page.set_viewport_size({"width": 390, "height": 844})
+    page.wait_for_function("document.querySelectorAll('.weather-pin').length <= 3")
     page.screenshot(path=str(ARTIFACTS / "mobile.png"), full_page=True)
     assert not page.evaluate("document.documentElement.scrollWidth > innerWidth"), (
         "Mobile horizontal overflow"
     )
     page.set_viewport_size({"width": 1440, "height": 1100})
+    page.wait_for_function("document.querySelector('.maplibregl-canvas').getBoundingClientRect().width > 600")
 
-    page.get_by_role("button", name="My real trip", exact=True).click()
     origin = page.get_by_role("combobox", name="Origin", exact=True)
     origin.fill("Chicago")
     page.get_by_role("option", name="Chicago, Illinois, United States", exact=True).click(timeout=30000)
     departure = (datetime.now() + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M")
-    page.get_by_label("Departure date and time", exact=False).fill(departure)
+    page.locator('input[type="datetime-local"]').fill(departure)
     with page.expect_response(lambda response: "/api/analyze/" in response.url, timeout=150000) as analysis:
         page.get_by_role("button", name="Compare routes", exact=True).click()
     assert analysis.value.status == 200
@@ -152,7 +174,10 @@ with sync_playwright() as p:
             "cargo reassessment without new forecast",
             "independent 48h map",
             "perspective",
-            "Spanish/English",
+            "English only, including a previous Spanish preference",
+            "no automatic provider calls",
+            "one route selector",
+            "collapsed sampling options",
             "rule table",
             "mobile layout",
             "real city search",

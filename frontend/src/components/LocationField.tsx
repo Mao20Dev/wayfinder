@@ -3,13 +3,11 @@ import { Autocomplete, CircularProgress, TextField } from '@mui/material'
 import { request } from '../api'
 import type { Location } from '../types'
 import type { Language } from '../i18n'
-
 export default function LocationField({
   label,
   value,
   onChange,
   disabled,
-  lang = 'es',
 }: {
   label: string
   value: Location | null
@@ -30,7 +28,9 @@ export default function LocationField({
     const timeout = window.setTimeout(() => {
       setLoading(true)
       setError('')
-      request<{ results: Location[] }>(`/api/locations/?q=${encodeURIComponent(text)}`, {
+      request<{
+        results: Location[]
+      }>(`/api/locations/?q=${encodeURIComponent(text)}`, {
         signal: controller.signal,
       })
         .then((data) => setOptions(data.results))
@@ -74,24 +74,15 @@ export default function LocationField({
       }}
       noOptionsText={
         text.length < 2
-          ? lang === 'es'
-            ? 'Escribe una ciudad'
-            : 'Type a city to search'
-          : error ||
-            (loading
-              ? lang === 'es'
-                ? 'Buscando…'
-                : 'Searching…'
-              : lang === 'es'
-                ? 'No encontramos esa ciudad'
-                : 'No matching cities')
+          ? 'Type a city to search'
+          : error || (loading ? 'Searching…' : 'No matching cities')
       }
       renderInput={(params) => (
         <TextField
           {...params}
           label={label}
           size="small"
-          placeholder={lang === 'es' ? 'Busca una ciudad' : 'Search a city'}
+          placeholder={'Search a city'}
           helperText={error || undefined}
           slotProps={{
             input: {

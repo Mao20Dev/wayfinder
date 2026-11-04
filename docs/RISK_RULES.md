@@ -52,11 +52,11 @@ Los empates exactos se muestran como tales. Un identificador estable elige únic
 
 ## Corredor y control temporal
 
-La vista inicial muestra **clima durante el viaje**. La carretera seleccionada está dividida en tramos de la geometría original del proveedor y coloreada con la misma regla de riesgo que se usa para sumar millas. Los límites se cortan exactamente en los puntos de consulta; no se dibujan atajos rectos entre puntos distantes.
+Tras comparar un viaje, **Along the route** muestra su clima. La carretera seleccionada está dividida en tramos de la geometría original del proveedor y coloreada con la misma regla de riesgo que se usa para sumar millas. Los límites se cortan exactamente en los puntos de consulta; no se dibujan atajos rectos entre puntos distantes. Las etiquetas y el detalle de cada punto muestran su pronóstico a la ETA.
 
-El clima cercano se consulta en las coordenadas de cada celda, a la ETA del punto de ruta más próximo. Esa referencia temporal aproximada se explica en la interfaz. No significa que el camión viaje por las celdas laterales ni que sepamos la hora exacta de cada fenómeno entre puntos.
+La API también conserva consultas en las celdas cercanas a la ETA del punto de ruta más próximo. Es una aproximación; no significa que el camión viaje por las celdas laterales ni que sepamos la hora exacta de cada fenómeno entre puntos. La interfaz mantiene el mapa principal centrado en los tramos y puntos del viaje; la capa espacial se muestra en la vista de 48 horas.
 
-La vista separada **Explorar próximas 48 h** recorre 49 instantes: desde la referencia horaria actual redondeada hasta +48 h. Cada celda usa una hora común. Mover el control no recalcula la recomendación ni altera la salida. En esta vista la carretera queda neutral para no confundir riesgo al paso con clima de una hora común.
+La vista separada **48-hour forecast** recorre 49 instantes: desde la referencia horaria actual redondeada hasta +48 h. Cada celda usa una hora común. Mover el control no recalcula la recomendación ni altera la salida. En esta vista la carretera queda neutral para no confundir riesgo al paso con clima de una hora común.
 
 La capa difuminada es intensidad relativa, afectada por suavizado y escala. Sus colores no son categorías certificadas. Los puntos y las ventanas de detalle muestran valores y categorías exactos. Los huecos se representan como desconocidos y se notifican.
 
