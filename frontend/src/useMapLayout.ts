@@ -36,12 +36,12 @@ export default function useMapLayout(
       const dockHeight = forecast ? (dock.current?.getBoundingClientRect().height ?? 150) : 0
       const sheetHeight = mobile ? Math.max(plannerBox?.height ?? 0, routeBox?.height ?? 0) : 0
       const next = {
-        top: mobile ? 180 : 130,
-        left: mobile ? 40 : (plannerBox?.width ?? 0) + 60,
-        right: mobile ? 80 : (routeBox?.width ?? 0) + (routeBox ? 60 : 80),
+        top: mobile ? 195 : 180,
+        left: mobile ? 60 : (plannerBox?.width ?? 0) + 115,
+        right: mobile ? 100 : (routeBox?.width ?? 0) + (routeBox ? 115 : 105),
         bottom: mobile
           ? Math.min(height - 250, Math.max(sheetHeight + 76, dockHeight + 100, 110))
-          : Math.max(110, dockHeight + 105),
+          : Math.max(155, dockHeight + 145),
       }
       next.bottom = Math.max(50, next.bottom)
       setPadding((previous) =>
@@ -57,8 +57,8 @@ export default function useMapLayout(
   }, [plannerVisible, routesVisible, forecast, compact])
 
   const style = {
-    '--map-left': `${compact ? 16 : padding.left - 24}px`,
-    '--map-right': `${compact ? 16 : padding.right - 24}px`,
+    '--map-left': `${compact ? 16 : padding.left - 79}px`,
+    '--map-right': `${compact ? 16 : padding.right - (routesVisible ? 79 : 49)}px`,
     '--sheet-height': `${compact && (plannerVisible || routesVisible) ? Math.max(0, padding.bottom - 76) : 0}px`,
   } as CSSProperties
   return { frame, planner, routes, dock, padding, compact, style, plannerVisible, routesVisible }

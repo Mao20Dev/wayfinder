@@ -4,11 +4,11 @@ Fecha de trabajo: 4 de noviembre de 2026, Colombia. Estas comprobaciones no equi
 
 | Comprobación | Resultado observado |
 |---|---|
-| Backend · pytest | 92 pruebas aprobadas, sin avisos. |
+| Backend · pytest | 102 pruebas aprobadas, sin avisos. |
 | Ruff y formato Python | Sin errores. |
 | Django `check` | Sin problemas. |
 | Frontend | TypeScript y compilación de producción aprobados. |
-| Vitest | 12 pruebas aprobadas. |
+| Vitest | 19 pruebas aprobadas. |
 | Dependencias | Sin cambios de dependencias en esta revisión. El último `npm audit` del conjunto instalado reportó 0 vulnerabilidades. |
 | Consulta real de API | Chicago–Detroit: tres rutas, cobertura meteorológica completa y 49 horas del corredor. Una ejecución inicial tardó aproximadamente 16,24 s; es una observación, no un SLA. |
 | Opera instalado | Geometría coloreada, etiquetas de clima, selección, detalles de reglas, tabla, perspectiva y controles: comprobados. |
@@ -22,6 +22,10 @@ Fecha de trabajo: 4 de noviembre de 2026, Colombia. Estas comprobaciones no equi
 | Encuadre antes del análisis | Selección real de Seattle y Portland: extremos encuadrados sin llamar a `/api/analyze/`. |
 | Búsqueda pendiente | Se retiene una solicitud en el navegador para verificar extremos enfocados, pulsos y tres tarjetas pendientes; luego se continúa contra el backend real. |
 | Identidad de ruta | Best route señala la clasificación; Selected cambia al inspeccionar una alternativa. |
+| Campo de pronóstico | Verificación de píxeles coloreados en una zona continua; cero riesgo permanece visible, huecos sin cobertura y datos desconocidos se distinguen. |
+| Horas de salida | 25 opciones; se aplicó una con `/api/departure/` y UUID nuevo, sin otra llamada a `/api/analyze/`. Pruebas de riesgo, falta de datos, pasado y validación. |
+| Guardar y Maps | Guardado persiste tras recargar. Popup de Maps interceptado y URL comprobada; no se envían coordenadas a Google durante la prueba. Start trip contiene intención de navegación. |
+| Viaje de la captura de Mauro | Minneapolis–Detroit real: tres rutas, encuadre con margen adicional y campo de pronóstico en escritorio y móvil, sin errores JavaScript. |
 | Pronóstico móvil y movimiento reducido | Abrir 48 horas cierra el panel inferior; capas y deslizador funcionan sin nuevas consultas. Con movimiento reducido no giran el indicador ni los pulsos. |
 | JavaScript en recorrido probado | Sin errores de ejecución. |
 | Mensaje de límite | Una respuesta 429 simulada, identificada como prueba, verifica la cuenta regresiva y conserva los resultados. |
@@ -53,3 +57,5 @@ Fecha de trabajo: 4 de noviembre de 2026, Colombia. Estas comprobaciones no equi
 - La compilación informa de un chunk grande de MapLibre. Se carga de forma diferida y comprimida; no se oculta el aviso.
 
 Capturas y reportes de navegador: `artifacts/planner-empty.png`, `artifacts/city-preview.png`, `artifacts/searching.png`, `artifacts/desktop.png`, `artifacts/perspective.png`, `artifacts/mobile.png`, `artifacts/mobile-forecast.png`, `artifacts/live-desktop.png`, `artifacts/risk-road.png`, `artifacts/browser-validation.json` y `artifacts/mobile-validation.json`. No se incluyen en Git. El recorrido completo incluye un viaje real; después se verificó por separado el ajuste final de espacio móvil y movimiento reducido. El único mensaje 429 se simula y las capturas de rutas se toman antes de esa simulación.
+
+La revisión de pronóstico y planeación se reproduce con `python scripts/check_trip_planning_opera.py`. Reporte: `artifacts/trip-planning-validation.json`; capturas: `forecast-field.png`, `departure-applied.png`, `centered-minneapolis.png`, `live-forecast-field.png` y `mobile-forecast-field.png`, dentro de `artifacts/`. El enlace a Maps se intercepta para validar el traspaso sin transmitir datos a Google durante la prueba.

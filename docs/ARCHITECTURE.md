@@ -95,6 +95,14 @@ Durante un análisis nuevo se retiran del mapa las rutas anteriores y se muestra
 - Animaciones con respuesta inmediata, transiciones interrumpibles cuando aplica y respeto por movimiento/transparencia reducidos. Tablas y controles con teclado complementan el mapa.
 - En despliegue: secreto obligatorio, `DEBUG=false`, hosts explícitos, HTTPS en Render y servidor WSGI apropiado. No se usa `runserver` como servidor de publicación.
 
+## Pronóstico, salidas y navegación
+
+El campo meteorológico se genera como una imagen geográfica en el navegador desde la malla recibida: interpola dentro de celdas conocidas y mantiene visibles riesgo bajo, datos desconocidos y límites de cobertura. Sus escalas son fijas; no usa la densidad de puntos como indicador de riesgo. Los márgenes de cámara reservan espacio adicional alrededor de A/B.
+
+`departures.py` reutiliza las series meteorológicas originales para 25 salidas horarias por ruta. Estas series se guardan sólo en la caché privada; `public_analysis` elimina las claves internas antes de responder. `/api/departure/` valida un desplazamiento entero de 0–24, usa una copia del análisis y devuelve un UUID nuevo, conservando la instantánea anterior. La caché sigue acotada a 24 análisis y 15 minutos. No se agregan llamadas externas ni una base de datos.
+
+Los enlaces de Google Maps se construyen con la API pública de URLs, con coordenadas y hasta tres puntos guía en orden. No transmiten el pronóstico ni la fecha de salida y no preservan de forma exacta la polilínea de OSRM/TomTom. El guardado persiste metadatos y puntos guía en `localStorage`, con diez registros como máximo, validación al leer y manejo de fallos de almacenamiento. Nunca se afirma guardar en una cuenta de Google.
+
 ## Qué no afirmar en una defensa
 
 No afirmar que el riesgo es una predicción científica de accidentes, que OSRM garantiza acceso legal de un camión, que la capa difuminada tiene categorías exactas, que el modo demo muestra clima real, que el perfil opcional de TomTom fue probado con credenciales reales, ni que los tiempos incluyen descansos reglamentarios.

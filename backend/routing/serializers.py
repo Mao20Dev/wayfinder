@@ -59,3 +59,7 @@ class LoadSerializer(serializers.Serializer):
         if not isfinite(value):
             raise serializers.ValidationError("Cargo weight must be a finite number.")
         return value
+
+
+class DepartureSerializer(LoadSerializer):
+    offset_hours = serializers.IntegerField(min_value=0, max_value=24)

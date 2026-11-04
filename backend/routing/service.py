@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from . import providers
+from .departures import compare_departures
 from .geometry import METERS_PER_MILE, checkpoints, corridor_grid, distance, road_segments
 from .risk import classify, recommend, summarize
 from .weather import at_time, simulated_at
@@ -109,7 +110,7 @@ def analyze_trip(trip):
         )
     if any(not sample["complete"] for cell in grid for sample in cell["hours"]):
         notices.append("Some corridor forecasts are unavailable; missing cells are shown as unknown.")
-    return {
+    analysis = {
         "mode": trip["mode"],
         "origin": origin,
         "destination": destination,
@@ -124,7 +125,11 @@ def analyze_trip(trip):
         "routing_provider": routing_provider,
         "weather_provider": "Synthetic scenario" if demo else "Open-Meteo",
         "notices": notices,
+        "_forecasts": forecasts,
+        "_base_departure_epoch": departure,
     }
+    analysis["departure_window"] = compare_departures(analysis)
+    return analysis
 
 
 def reassess_load(analysis, load_lb):
@@ -140,4 +145,6 @@ def reassess_load(analysis, load_lb):
             level = classify(sample, load_lb)
             sample.update({"risk": level["risk"], "complete": level["complete"]})
     analysis["recommendation"] = recommend(analysis["routes"])
+    if "_base_departure_epoch" in analysis:
+        analysis["departure_window"] = compare_departures(analysis)
     return analysis

@@ -2,6 +2,7 @@ import logging
 import os
 import threading
 from copy import deepcopy
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
@@ -14,12 +15,18 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import exception_handler as drf_exception_handler
 
+from .departures import apply_departure, departure_available
 from .providers import ProviderError, geocode
-from .serializers import LoadSerializer, TripSerializer
+from .serializers import DepartureSerializer, LoadSerializer, TripSerializer
 from .service import DEMO_DESTINATION, DEMO_ORIGIN, analyze_trip, reassess_load
 
 logger = logging.getLogger(__name__)
 ANALYSIS_LOCK = threading.BoundedSemaphore(2)
+
+
+def public_analysis(analysis):
+    # Raw provider series stay in the server cache, never in browser JSON.
+    return {key: value for key, value in analysis.items() if not key.startswith("_")}
 
 
 class ReassessmentThrottle(AnonRateThrottle):
@@ -96,7 +103,7 @@ def analyze(request):
         result = analyze_trip(serializer.validated_data)
         result["analysis_id"] = str(uuid4())
         caches["analyses"].set(result["analysis_id"], result)
-        return Response(result)
+        return Response(public_analysis(result))
     except ProviderError as exc:
         return Response({"error": str(exc)}, status=502)
     except Exception:
@@ -122,7 +129,28 @@ def reassess(request):
             },
             status=410,
         )
-    return Response(reassess_load(deepcopy(stored), serializer.validated_data["load_lb"]))
+    return Response(public_analysis(reassess_load(deepcopy(stored), serializer.validated_data["load_lb"])))
+
+
+@api_view(["POST"])
+@throttle_classes([ReassessmentThrottle])
+def departure(request):
+    serializer = DepartureSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    values = serializer.validated_data
+    stored = caches["analyses"].get(str(values["analysis_id"]))
+    if stored is None or "_base_departure_epoch" not in stored:
+        return Response(
+            {"error": "This trip has expired. Compare routes again.", "code": "analysis_expired"}, status=410
+        )
+    epoch = stored["_base_departure_epoch"] + values["offset_hours"] * 3600
+    if not departure_available(stored, epoch, datetime.now(UTC).timestamp()):
+        return Response({"error": "Choose a future departure within the next four days."}, status=400)
+    changed = apply_departure(deepcopy(stored), values["offset_hours"], values["load_lb"])
+    changed = reassess_load(changed, values["load_lb"])
+    changed["analysis_id"] = str(uuid4())
+    caches["analyses"].set(changed["analysis_id"], changed)
+    return Response(public_analysis(changed))
 
 
 def index(request):

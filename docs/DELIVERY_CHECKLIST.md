@@ -20,6 +20,9 @@
 - [x] Vistas separadas de clima al paso y pronóstico de 48 horas.
 - [x] Mapa a pantalla completa, paneles flotantes y encuadre inmediato al elegir ciudades.
 - [x] Estado de búsqueda con extremos y pulsos; etiquetas Best route y Selected diferenciadas.
+- [x] Campo de pronóstico continuo con escala fija, cobertura explícita y riesgo bajo visible.
+- [x] Comparación de 25 horas de salida, aplicación sin consultas nuevas y actualización completa de ETAs/riesgo.
+- [x] Start trip con puntos guía de Google Maps; guardado local de hasta diez viajes.
 
 ## Verificación realizada
 

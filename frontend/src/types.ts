@@ -89,6 +89,27 @@ export type Analysis = {
     }
   }
   notices: string[]
+  departure_window?: {
+    base_epoch: number
+    end_epoch: number
+    step_hours: number
+    current_offset_hours: number
+    routes: Record<
+      string,
+      {
+        best_offset_hours: number | null
+        best_departure_epoch: number | null
+        eligible_count: number
+        tied_offsets: number[]
+        candidates: {
+          offset_hours: number
+          departure_epoch: number
+          available: boolean
+          summary: Route['summary']
+        }[]
+      }
+    >
+  }
 }
 export type Trip = {
   mode: 'live' | 'demo'

@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { Alert, Slider } from '@mui/material'
 import {
+  Bookmark,
   Check,
   ChevronDown,
   Info,
@@ -21,6 +22,10 @@ import RouteComparison, { RecommendationBanner } from './components/RouteCompari
 import JourneyDetails from './components/JourneyDetails'
 import DetailsDialog from './components/DetailsDialog'
 import useMapLayout from './useMapLayout'
+import { FORECAST_SCALES } from './forecastField'
+import DeparturePlanner from './components/DeparturePlanner'
+import { TripActions, SavedTripsDialog } from './components/TripActions'
+import { readSavedTrips, saveTrip, writeSavedTrips } from './maps'
 const RouteMap = lazy(() => import('./components/RouteMap'))
 const CHICAGO: Location = {
   name: 'Chicago, Illinois, United States',
@@ -51,6 +56,9 @@ export default function App() {
   const [playing, setPlaying] = useState(false)
   const [loading, setLoading] = useState(false)
   const [reassessing, setReassessing] = useState(false)
+  const [departureUpdating, setDepartureUpdating] = useState(false)
+  const [savedTrips, setSavedTrips] = useState(readSavedTrips)
+  const [savedOpen, setSavedOpen] = useState(false)
   const [error, setError] = useState('')
   const [retryUntil, setRetryUntil] = useState(0)
   const [now, setNow] = useState(Date.now())
@@ -151,7 +159,14 @@ export default function App() {
     }
   }
   useEffect(() => {
-    if (!data || loading || lastBase !== baseSignature || !loadValid || data.load_lb === loadNumber)
+    if (
+      !data ||
+      loading ||
+      departureUpdating ||
+      lastBase !== baseSignature ||
+      !loadValid ||
+      data.load_lb === loadNumber
+    )
       return
     const controller = new AbortController()
     const timer = setTimeout(() => {
@@ -192,7 +207,16 @@ export default function App() {
     }
     // Data identity is deliberately excluded: only cargo and trip identity trigger reassessment.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data?.analysis_id, data?.load_lb, lastBase, baseSignature, loadNumber, loadValid, loading])
+  }, [
+    data?.analysis_id,
+    data?.load_lb,
+    lastBase,
+    baseSignature,
+    loadNumber,
+    loadValid,
+    loading,
+    departureUpdating,
+  ])
   useEffect(() => {
     if (!playing || mapView !== 'forecast') return
     const timer = setInterval(() => setHour((value) => (value < 48 ? value + 1 : 0)), 800)
@@ -226,6 +250,61 @@ export default function App() {
   function editLocation(setter: (value: Location | null) => void, value: Location | null) {
     setter(value)
     setMode('live')
+  }
+  async function changeDeparture(offset: number) {
+    if (!data || dirty || loading || reassessing || departureUpdating || !loadValid) return
+    const controller = new AbortController()
+    activeRequest.current?.abort()
+    activeRequest.current = controller
+    setDepartureUpdating(true)
+    setError('')
+    setPlaying(false)
+    try {
+      const result = await request<Analysis>('/api/departure/', {
+        method: 'POST',
+        signal: controller.signal,
+        body: JSON.stringify({
+          analysis_id: data.analysis_id,
+          offset_hours: offset,
+          load_lb: loadNumber,
+        }),
+      })
+      if (controller.signal.aborted) return
+      const nextDeparture = localDateTime(new Date(result.departure_epoch * 1000))
+      setDeparture(nextDeparture)
+      setData(result)
+      setLastBase(JSON.stringify([mode, origin, destination, nextDeparture, spacing]))
+      setPoint(null)
+      followRecommendation.current = false
+    } catch (error) {
+      if (!controller.signal.aborted) showError(error)
+    } finally {
+      if (!controller.signal.aborted) setDepartureUpdating(false)
+    }
+  }
+  function saveSelectedTrip() {
+    if (!data || !selectedRoute || dirty || !loadValid || loadNumber !== data.load_lb) return
+    try {
+      const next = saveTrip(data, selectedRoute, savedTrips)
+      writeSavedTrips(next)
+      setSavedTrips(next)
+      setSavedOpen(true)
+    } catch (error) {
+      setError(
+        error instanceof Error && error.message.includes('10 saved')
+          ? error.message
+          : 'This browser could not save the route. You can still open it in Google Maps.',
+      )
+    }
+  }
+  function removeSavedTrip(id: string) {
+    const next = savedTrips.filter((trip) => trip.id !== id)
+    try {
+      writeSavedTrips(next)
+      setSavedTrips(next)
+    } catch {
+      setError('This browser could not update saved routes.')
+    }
   }
   function togglePlanner() {
     if (layout.compact) {
@@ -299,6 +378,14 @@ export default function App() {
             </button>
           )}
           <button
+            className="saved-button"
+            aria-label="Saved routes"
+            onClick={() => setSavedOpen(true)}
+          >
+            <Bookmark size={16} />
+            <span>Saved{savedTrips.length ? ` · ${savedTrips.length}` : ''}</span>
+          </button>
+          <button
             className="help-button"
             aria-label="Risk rules"
             onClick={() => setDialog('method')}
@@ -318,7 +405,7 @@ export default function App() {
             load={load}
             spacing={spacing}
             mode={mode}
-            loading={loading}
+            loading={loading || departureUpdating}
             reassessing={reassessing}
             loadValid={loadValid}
             retrySeconds={retrySeconds}
@@ -338,7 +425,7 @@ export default function App() {
           />
         </div>
       )}
-      <div className="map-context" aria-busy={loading || reassessing}>
+      <div className="map-context" aria-busy={loading || reassessing || departureUpdating}>
         {visibleData && (
           <>
             <div className="selected-route-chip glass">
@@ -391,9 +478,9 @@ export default function App() {
             </div>
           </div>
         )}
-        {reassessing && (
+        {(reassessing || departureUpdating) && (
           <div className="updating-status glass" role="status">
-            Updating risk for your cargo...
+            {departureUpdating ? 'Applying departure time...' : 'Updating risk for your cargo...'}
           </div>
         )}
         {dirty && !loading && (
@@ -411,7 +498,7 @@ export default function App() {
         <div
           ref={layout.routes}
           className="results-column floating-panel"
-          aria-busy={loading || reassessing}
+          aria-busy={loading || reassessing || departureUpdating}
         >
           <div className="results-heading">
             <div>
@@ -432,57 +519,82 @@ export default function App() {
               <X size={18} />
             </button>
           </div>
-          {loading ? (
-            <div className="route-skeletons" aria-label="Routes are loading">
-              {[0, 1, 2].map((value) => (
-                <div className="route-skeleton" key={value}>
-                  <i />
-                  <i />
-                  <i />
-                </div>
-              ))}
-              <button
-                className="cancel-button"
-                onClick={() => {
-                  activeRequest.current?.abort()
-                  setLoading(false)
-                }}
-              >
-                Cancel search
-              </button>
-            </div>
-          ) : (
-            visibleData && (
-              <>
-                <RecommendationBanner data={visibleData} lang={lang} />
-                <RouteComparison
-                  data={visibleData}
-                  selected={selected}
-                  lang={lang}
-                  onSelect={selectRoute}
-                />
-                <div className="route-panel-footer">
-                  <span className={`data-badge ${visibleData.mode === 'live' ? 'live' : ''}`}>
+          <div className="results-scroll">
+            {loading ? (
+              <div className="route-skeletons" aria-label="Routes are loading">
+                {[0, 1, 2].map((value) => (
+                  <div className="route-skeleton" key={value}>
                     <i />
-                    {visibleData.mode === 'live' ? 'Live forecast' : 'Simulated weather'}
-                  </span>
-                  <details className="data-details">
-                    <summary>Trip &amp; data sources</summary>
-                    <p>
-                      {timeAt(visibleData.departure_epoch, zone, lang, true)} ·{' '}
-                      {fmt(visibleData.load_lb, lang)} lb cargo · weather every{' '}
-                      {visibleData.spacing_miles} mi.
-                    </p>
-                    <p>
-                      {visibleData.routing_provider} · {visibleData.weather_provider}. {t.noStops}
-                    </p>
-                    {visibleData.notices.map((notice) => (
-                      <p key={notice}>{notice}</p>
-                    ))}
-                  </details>
-                </div>
-              </>
-            )
+                    <i />
+                    <i />
+                  </div>
+                ))}
+                <button
+                  className="cancel-button"
+                  onClick={() => {
+                    activeRequest.current?.abort()
+                    setLoading(false)
+                  }}
+                >
+                  Cancel search
+                </button>
+              </div>
+            ) : (
+              visibleData && (
+                <>
+                  <RecommendationBanner data={visibleData} lang={lang} />
+                  {selectedRoute && (
+                    <DeparturePlanner
+                      data={visibleData}
+                      route={selectedRoute}
+                      busy={loading || reassessing || departureUpdating || dirty || !loadValid}
+                      onApply={(offset) => void changeDeparture(offset)}
+                    />
+                  )}
+                  <RouteComparison
+                    data={visibleData}
+                    selected={selected}
+                    lang={lang}
+                    onSelect={selectRoute}
+                  />
+                  <div className="route-panel-footer">
+                    <span className={`data-badge ${visibleData.mode === 'live' ? 'live' : ''}`}>
+                      <i />
+                      {visibleData.mode === 'live' ? 'Live forecast' : 'Simulated weather'}
+                    </span>
+                    <details className="data-details">
+                      <summary>Trip &amp; data sources</summary>
+                      <p>
+                        {timeAt(visibleData.departure_epoch, zone, lang, true)} ·{' '}
+                        {fmt(visibleData.load_lb, lang)} lb cargo · weather every{' '}
+                        {visibleData.spacing_miles} mi.
+                      </p>
+                      <p>
+                        {visibleData.routing_provider} · {visibleData.weather_provider}. {t.noStops}
+                      </p>
+                      {visibleData.notices.map((notice) => (
+                        <p key={notice}>{notice}</p>
+                      ))}
+                    </details>
+                  </div>
+                </>
+              )
+            )}
+          </div>
+          {visibleData && selectedRoute && (
+            <TripActions
+              data={visibleData}
+              route={selectedRoute}
+              busy={
+                loading ||
+                reassessing ||
+                departureUpdating ||
+                dirty ||
+                !loadValid ||
+                loadNumber !== visibleData.load_lb
+              }
+              onSave={saveSelectedTrip}
+            />
           )}
         </div>
       )}
@@ -543,12 +655,22 @@ export default function App() {
                     </div>
                   </div>
                 </div>
+                <div className="forecast-scale" aria-label={`${layer} forecast scale`}>
+                  <span>
+                    {layer === 'risk'
+                      ? 'Weather risk'
+                      : `${layer[0].toUpperCase()}${layer.slice(1)} (${FORECAST_SCALES[layer].unit})`}
+                  </span>
+                  <i />
+                  <div>
+                    {FORECAST_SCALES[layer].labels.map((label) => (
+                      <span key={label}>{label}</span>
+                    ))}
+                  </div>
+                </div>
                 <div className="forecast-caption">
                   <span>Area forecast only · trip unchanged</span>
-                  <span className="heat-scale">
-                    Relative intensity <i />
-                    {layer === 'wind' ? 'mph' : layer === 'risk' ? 'Risk' : 'in/h'}
-                  </span>
+                  <span>Spatial estimate · select an area for sample values</span>
                 </div>
               </div>
             </div>
@@ -601,6 +723,12 @@ export default function App() {
             : 'Car-profile routes. Truck access not verified.'}
         </span>
       </div>
+      <SavedTripsDialog
+        open={savedOpen}
+        trips={savedTrips}
+        onClose={() => setSavedOpen(false)}
+        onRemove={removeSavedTrip}
+      />
       <DetailsDialog
         kind={dialog}
         data={data}

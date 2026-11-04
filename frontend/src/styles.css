@@ -1457,3 +1457,267 @@ body {
     color: #405e49;
   }
 }
+
+/* Result actions stay available while comparison and departure details scroll. */
+.results-column {
+  overflow: hidden;
+}
+.results-heading {
+  flex-shrink: 0;
+}
+.results-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1px;
+}
+.trip-actions {
+  flex-shrink: 0;
+  border-top: 1px solid #e0e8e1;
+  padding-top: 0.85rem;
+}
+.trip-action-buttons {
+  display: flex;
+  gap: 0.45rem;
+}
+.start-trip,
+.save-trip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 2.6rem;
+  border-radius: 0.5rem;
+  font-size: 0.76rem;
+  padding: 0.6rem 0.7rem;
+}
+.start-trip {
+  background: #225c4d;
+  color: white;
+  flex: 1;
+  font-weight: 600;
+}
+.start-trip:hover {
+  background: #194737;
+  text-decoration: none;
+}
+.save-trip {
+  color: #42664e;
+  border: 1px solid #d2dfd4;
+  background: #f3f7f3;
+}
+.trip-actions > p {
+  color: #65776a;
+  font-size: 0.65rem;
+  line-height: 1.6;
+  margin-top: 0.6rem;
+}
+.departure-planner {
+  border: 1px solid #dce6dc;
+  border-radius: 0.65rem;
+  padding: 0.85rem;
+  background: #f8faf6;
+}
+.departure-title {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  color: #3f6e4e;
+}
+.departure-title h3 {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.departure-context,
+.departure-zone,
+.departure-tie {
+  display: block;
+  color: #637661;
+  font-size: 0.65rem;
+  line-height: 1.55;
+  margin-top: 0.4rem;
+}
+.best-departure {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #2c593c;
+  margin-top: 0.55rem;
+  letter-spacing: -0.02em;
+}
+.departure-zone {
+  margin-top: 0.1rem;
+}
+.departure-reason {
+  color: #4c6e51;
+  font-size: 0.72rem;
+  line-height: 1.6;
+  margin-top: 0.5rem;
+}
+.use-departure {
+  width: 100%;
+  background: #e2efdf;
+  color: #335d39;
+  border: 1px solid #bfd5b8;
+  padding: 0.55rem;
+  margin-top: 0.6rem;
+  border-radius: 0.45rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.departure-options {
+  margin-top: 0.75rem;
+  border-top: 1px solid #e0e9dc;
+  padding-top: 0.6rem;
+  color: #5d765b;
+  font-size: 0.7rem;
+}
+.departure-options summary {
+  cursor: pointer;
+}
+.departure-options > p {
+  font-size: 0.66rem;
+  line-height: 1.6;
+  margin: 0.6rem 0;
+}
+.departure-table-wrap {
+  overflow: auto;
+  max-height: 20rem;
+}
+.departure-table {
+  font-size: 0.64rem;
+  border-collapse: collapse;
+  width: 100%;
+  white-space: nowrap;
+}
+.departure-table th {
+  font-size: 0.59rem;
+  padding: 0.5rem 0.25rem;
+  text-align: left;
+}
+.departure-table td {
+  padding: 0.45rem 0.25rem;
+  border-top: 1px solid #e4eadf;
+}
+.departure-table button {
+  background: transparent;
+  color: #366b41;
+  padding: 0.2rem 0;
+  font-size: 0.64rem;
+}
+.departure-table .current {
+  background: #e8f0e4;
+}
+.forecast-scale {
+  font-size: 0.65rem;
+  color: #516b58;
+  margin-top: 0.6rem;
+}
+.forecast-scale > i {
+  display: block;
+  height: 0.45rem;
+  margin-top: 0.4rem;
+  border-radius: 0.4rem;
+  background: linear-gradient(90deg, #40a685, #d4b944, #e78b41, #d3524f, #922f54);
+}
+.forecast-scale > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.3rem;
+  font-size: 0.6rem;
+  margin-top: 0.25rem;
+}
+.saved-intro,
+.saved-empty {
+  font-size: 0.82rem;
+  color: #617765;
+  line-height: 1.7;
+  margin-bottom: 1rem;
+}
+.saved-trip {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 1rem 0;
+  border-top: 1px solid #e1e8df;
+}
+.saved-trip h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.saved-trip p {
+  font-size: 0.76rem;
+  color: #65796a;
+  margin-top: 0.3rem;
+}
+.saved-trip a {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  font-size: 0.78rem;
+  margin-top: 0.7rem;
+  color: #326d4b;
+}
+@media (max-width: 980px) {
+  .workspace-actions .saved-button > span {
+    display: none;
+  }
+  .results-column {
+    max-height: 52dvh;
+  }
+  .results-heading h2 {
+    font-size: 0.9rem;
+  }
+  .trip-actions > p {
+    font-size: 0.61rem;
+  }
+  .forecast-scale > div {
+    font-size: 0.55rem;
+  }
+  .forecast-caption {
+    font-size: 0.55rem;
+  }
+}
+.planned-departure {
+  display: block;
+  color: #5e7565;
+  font-size: 0.64rem;
+  line-height: 1.6;
+  margin-bottom: 0.5rem;
+}
+
+.departure-summary {
+  cursor: pointer;
+  list-style: none;
+}
+.departure-summary::-webkit-details-marker {
+  display: none;
+}
+.departure-title > span {
+  font-size: 0.8rem;
+  font-weight: 600;
+  flex: 1;
+}
+.departure-summary .best-departure {
+  font-size: 0.92rem;
+  margin-top: 0.35rem;
+}
+.departure-summary .departure-zone {
+  font-size: 0.6rem;
+}
+.departure-details[open] .departure-title > svg:last-child {
+  transform: rotate(180deg);
+}
+@media (max-width: 980px) {
+  .workspace-actions button {
+    white-space: nowrap;
+    padding: 0.45rem 0.4rem;
+    font-size: 0.66rem;
+    flex-shrink: 0;
+  }
+}

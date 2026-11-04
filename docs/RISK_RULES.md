@@ -58,7 +58,13 @@ La API también conserva consultas en las celdas cercanas a la ETA del punto de 
 
 La vista separada **48-hour forecast** recorre 49 instantes: desde la referencia horaria actual redondeada hasta +48 h. Cada celda usa una hora común. Mover el control no recalcula la recomendación ni altera la salida. En esta vista la carretera queda neutral para no confundir riesgo al paso con clima de una hora común.
 
-La capa difuminada es intensidad relativa, afectada por suavizado y escala. Sus colores no son categorías certificadas. Los puntos y las ventanas de detalle muestran valores y categorías exactos. Los huecos se representan como desconocidos y se notifican.
+El campo espacial usa escalas fijas: riesgo 0–4, viento 0–55+ mph, lluvia 0–1+ in/h y nieve 0–3+ in/h. Se interpola dentro de las celdas consultadas para mostrar una estimación continua, sin normalizar cada hora ni confundir densidad de puntos con intensidad. Riesgo cero se pinta en verde; una celda sin datos es gris y el territorio no consultado permanece transparente. Los bordes se atenúan dentro del dominio conocido. El mapa no es radar ni delimita tormentas con exactitud; los detalles de cada celda exponen su muestra real.
+
+## Comparar horas de salida
+
+Se comparan 25 salidas: la original y sus siguientes 24 horas, con paso de una hora. La ventana permanece anclada a la salida original incluso al aplicar una alternativa; sus extremos se muestran en pantalla. Cada opción evalúa el clima a la nueva ETA de todos los puntos de la ruta. Usa la misma clasificación por carga y exposición conservadora. Dentro de una ruta se comparan millas Severe, millas High y promedio ponderado; la geometría y duración son constantes. No se añade un peso arbitrario por esperar. En empate se propone la primera hora elegible y se muestran las horas empatadas.
+
+Los pronósticos horarios originales permanecen en la caché del servidor y no salen en el JSON público. No hay nuevas consultas al proveedor al comparar, aplicar otra salida o cambiar la carga. Faltas de cobertura y No Travel excluyen la opción. Las salidas reales pasadas o fuera de los cuatro días admitidos no son elegibles. Aplicar una hora actualiza todos los puntos, ETAs, tramos y recomendación; genera un identificador nuevo sin modificar el análisis anterior. La exploración de 48 horas conserva su referencia independiente. No se predicen cambios de tráfico, descansos ni nuevas alternativas de carreteras para cada hora.
 
 ## Recalcular carga
 

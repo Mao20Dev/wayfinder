@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import * as maplibregl from 'maplibre-gl'
-import type { GeoJSONSource, Map as MapInstance } from 'maplibre-gl'
+import type { GeoJSONSource, ImageSource, Map as MapInstance } from 'maplibre-gl'
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import type { FeatureCollection } from 'geojson'
 import { Box, Compass, Layers2, Maximize2, Minus, Plus } from 'lucide-react'
@@ -8,6 +8,7 @@ import { Tooltip } from '@mui/material'
 import type { Analysis, Checkpoint, Layer, Location, MapView } from '../types'
 import type { MapPadding } from '../useMapLayout'
 import { RISK_COLORS } from '../types'
+import { forecastImage } from '../forecastField'
 import {
   weatherNumber,
   copy,
@@ -101,7 +102,6 @@ export default function RouteMap({
       instance.addSource('risk-segments', { type: 'geojson', data: empty })
       instance.addSource('route-labels', { type: 'geojson', data: empty })
       instance.addSource('checkpoints', { type: 'geojson', data: empty })
-      instance.addSource('corridor', { type: 'geojson', data: empty })
       instance.addSource('cells', { type: 'geojson', data: empty })
       instance.addSource('endpoints', { type: 'geojson', data: empty })
       instance.addLayer({
@@ -110,35 +110,7 @@ export default function RouteMap({
         source: 'cells',
         paint: {
           'fill-color': ['get', 'color'],
-          'fill-opacity': ['case', ['get', 'unknown'], 0.15, 0.025],
-        },
-      })
-      instance.addLayer({
-        id: 'corridor-heat',
-        type: 'heatmap',
-        source: 'corridor',
-        paint: {
-          'heatmap-weight': ['get', 'intensity'],
-          'heatmap-intensity': 1.35,
-          'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 4, 22, 7, 55, 10, 110],
-          'heatmap-opacity': 0.55,
-          'heatmap-color': [
-            'interpolate',
-            ['linear'],
-            ['heatmap-density'],
-            0,
-            'rgba(48,153,139,0)',
-            0.15,
-            '#9fceb7',
-            0.35,
-            '#dce6a1',
-            0.55,
-            '#f3cd7c',
-            0.75,
-            '#e99477',
-            1,
-            '#bf5870',
-          ],
+          'fill-opacity': 0.005,
         },
       })
       instance.addLayer({
@@ -308,16 +280,11 @@ export default function RouteMap({
     if (!ready || !map.current) return
     const instance = map.current
     if (!data) {
-      for (const source of [
-        'routes',
-        'risk-segments',
-        'route-labels',
-        'checkpoints',
-        'corridor',
-        'cells',
-      ])
+      for (const source of ['routes', 'risk-segments', 'route-labels', 'checkpoints', 'cells'])
         (instance.getSource(source) as GeoJSONSource).setData(empty)
       popup.current?.remove()
+      if (instance.getLayer('forecast-field'))
+        instance.setLayoutProperty('forecast-field', 'visibility', 'none')
       return
     }
     const features: FeatureCollection['features'] = data.routes.map((route) => ({
@@ -476,11 +443,9 @@ export default function RouteMap({
   ])
   useEffect(() => {
     if (!ready || !map.current || !data) return
-    const features: FeatureCollection['features'] = []
     const cells: FeatureCollection['features'] = []
     for (const cell of data.corridor) {
       const arrival = cell.arrivals[selected]
-      if (arrival && arrival.distance_miles > 45) continue
       const sample = view === 'arrival' ? arrival : cell.hours[hour]
       if (!sample) continue
       const value =
@@ -498,11 +463,6 @@ export default function RouteMap({
       const sampleTime =
         view === 'arrival' ? arrival.eta_epoch : data.forecast_reference_epoch + hour * 3600
       const description = `${view === 'arrival' ? t.arrival : t.forecast} · ${timeAt(sampleTime, data.origin.timezone, lang, true)}\n${t.wind}: ${fmt(sample.wind_mph, lang, 1)} mph\n${t.rain}: ${fmt(sample.rain_in_hr, lang, 2)} in/h\n${t.snow}: ${fmt(sample.snow_in_hr, lang, 2)} in/h\n${t.risk}: ${sample.risk === null ? t.unknown : riskNames[lang][sample.risk]}`
-      features.push({
-        type: 'Feature',
-        geometry: { type: 'Point', coordinates: cell.coordinates },
-        properties: { intensity },
-      })
       cells.push({
         type: 'Feature',
         geometry: {
@@ -520,10 +480,33 @@ export default function RouteMap({
         properties: { color, description, unknown: value === null },
       })
     }
-    ;(map.current.getSource('corridor') as GeoJSONSource).setData(featureCollection(features))
     ;(map.current.getSource('cells') as GeoJSONSource).setData(featureCollection(cells))
-    for (const id of ['corridor-heat', 'corridor-cells'])
-      map.current.setLayoutProperty(id, 'visibility', heatVisible ? 'visible' : 'none')
+    if (heatVisible && view === 'forecast') {
+      const field = forecastImage(data.corridor, hour, layer)
+      if (field) {
+        const source = map.current.getSource('forecast-field') as ImageSource | undefined
+        if (source) source.updateImage(field)
+        else {
+          map.current.addSource('forecast-field', { type: 'image', ...field })
+          map.current.addLayer(
+            {
+              id: 'forecast-field',
+              type: 'raster',
+              source: 'forecast-field',
+              paint: {
+                'raster-opacity': 0.8,
+                'raster-fade-duration': 180,
+                'raster-resampling': 'linear',
+              },
+            },
+            'corridor-cells',
+          )
+        }
+        map.current.setLayoutProperty('forecast-field', 'visibility', 'visible')
+      }
+    } else if (map.current.getLayer('forecast-field'))
+      map.current.setLayoutProperty('forecast-field', 'visibility', 'none')
+    map.current.setLayoutProperty('corridor-cells', 'visibility', heatVisible ? 'visible' : 'none')
     popup.current?.remove()
   }, [data, selected, hour, layer, heatVisible, ready, view, lang])
   useEffect(() => {
