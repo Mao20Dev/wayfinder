@@ -1,6 +1,8 @@
 services:
   - type: web
-    name: spotter-weather-routing
+    name: wayfinder
+    repo: https://github.com/Mao20Dev/wayfinder
+    branch: main
     runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt && npm ci --prefix frontend && npm run build --prefix frontend && python backend/manage.py collectstatic --noinput
