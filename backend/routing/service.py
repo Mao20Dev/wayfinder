@@ -1,0 +1,114 @@
+import json
+import os
+from datetime import UTC, datetime
+from pathlib import Path
+
+from . import providers
+from .geometry import METERS_PER_MILE, checkpoints, corridor_grid
+from .risk import classify, recommend, summarize
+from .weather import at_time, simulated_at
+
+DEMO_ORIGIN = {
+    "name": "Chicago, Illinois, United States",
+    "latitude": 41.8781,
+    "longitude": -87.6298,
+    "timezone": "America/Chicago",
+}
+DEMO_DESTINATION = {
+    "name": "Detroit, Michigan, United States",
+    "latitude": 42.3314,
+    "longitude": -83.0458,
+    "timezone": "America/Detroit",
+}
+
+
+def analyze_trip(trip):
+    demo = trip["mode"] == "demo"
+    generated = datetime.now(UTC).timestamp()
+    reference = int(generated // 3600 * 3600)
+    departure = trip["departure"].timestamp()
+    notices = []
+    if demo:
+        fixture = json.loads(
+            (Path(__file__).parent / "fixtures/demo_routes.json").read_text(encoding="utf-8")
+        )
+        routes = fixture["routes"]
+        origin, destination = DEMO_ORIGIN, DEMO_DESTINATION
+        # The reproducible sample starts at the heatmap reference, regardless of
+        # the date entered for a live trip. Response exposes the effective date.
+        departure = reference
+        routing_provider = "OSRM recorded routes"
+        notices.append("Demo: recorded road routes with synthetic weather. No live forecast is used.")
+    else:
+        origin, destination = trip["origin"], trip["destination"]
+        if os.getenv("TOMTOM_API_KEY"):
+            routes = providers.tomtom_routes(origin, destination, trip["departure"])
+            routing_provider = "TomTom truck"
+        else:
+            routes = providers.osrm_routes(origin, destination)
+            routing_provider = "OSRM car"
+            notices.append(
+                "OSRM uses a car profile: truck height, gross weight, access restrictions and driving breaks are not modeled."
+            )
+    if any(route["duration_seconds"] > 48 * 3600 for route in routes):
+        raise providers.ProviderError("This prototype supports routes with up to 48 hours of driving time.")
+    if len(routes) < 3:
+        notices.append(
+            f"The routing provider returned {len(routes)} distinct route(s). No duplicates were added."
+        )
+    for route in routes:
+        route["checkpoints"] = checkpoints(route, trip["spacing_miles"], departure)
+    if sum(len(route["checkpoints"]) for route in routes) > 450:
+        raise providers.ProviderError(
+            "This trip has too many checkpoints for the free forecast budget. Choose 25 or 50 mile spacing, or a shorter trip."
+        )
+    grid = corridor_grid(routes)
+    coords = [cp["coordinates"] for route in routes for cp in route["checkpoints"]] + [
+        cell["coordinates"] for cell in grid
+    ]
+    forecasts = {} if demo else providers.forecast(coords)
+
+    def weather(coordinate, epoch):
+        return (
+            simulated_at(coordinate, epoch, reference)
+            if demo
+            else at_time(forecasts.get(tuple(round(v, 4) for v in coordinate)), epoch)
+        )
+
+    for route in routes:
+        for cp in route["checkpoints"]:
+            cp["weather"] = weather(cp["coordinates"], cp["eta_epoch"])
+            cp.update(classify(cp["weather"], trip["load_lb"]))
+        route["distance_miles"] = route["distance_meters"] / METERS_PER_MILE
+        route["summary"] = summarize(route["checkpoints"], route["distance_miles"])
+        # Cumulative arrays are internal provider data, not needed by the client.
+        route.pop("times", None)
+        route.pop("distances", None)
+    for cell in grid:
+        cell["hours"] = []
+        for h in range(49):
+            sample = weather(cell["coordinates"], reference + h * 3600)
+            level = classify(sample, trip["load_lb"])
+            cell["hours"].append({**sample, "risk": level["risk"], "complete": level["complete"]})
+    if any(not route["summary"]["complete"] for route in routes):
+        notices.append(
+            "Some arrival forecasts are missing or outside coverage. Incomplete routes are excluded from recommendation."
+        )
+    if any(not sample["complete"] for cell in grid for sample in cell["hours"]):
+        notices.append("Some corridor forecasts are unavailable; missing cells are shown as unknown.")
+    return {
+        "mode": trip["mode"],
+        "origin": origin,
+        "destination": destination,
+        "departure_epoch": departure,
+        "generated_epoch": generated,
+        "forecast_reference_epoch": reference,
+        "load_lb": trip["load_lb"],
+        "spacing_miles": trip["spacing_miles"],
+        "routes": routes,
+        "recommendation": recommend(routes),
+        "corridor": grid,
+        "routing_provider": routing_provider,
+        "weather_provider": "Synthetic scenario" if demo else "Open-Meteo",
+        "notices": notices,
+    }

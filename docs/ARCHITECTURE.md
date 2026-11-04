@@ -1,0 +1,92 @@
+# Arquitectura y decisiones que Mauro debe poder defender
+
+## Mapa del sistema
+
+```mermaid
+flowchart TB
+    DRIVER["Conductor · navegador Opera"]
+    subgraph BROWSER["Frontend en el navegador"]
+        REACT["React + TypeScript<br/>Formulario, comparación, detalles"]
+        MAP["MapLibre GL JS<br/>Rutas, puntos, corredor, perspectiva"]
+        STATE["Estado del último viaje analizado<br/>49 horas del corredor en memoria"]
+        REACT --- MAP
+        REACT --- STATE
+    end
+    subgraph LOCAL["Un servicio local · 127.0.0.1:8000"]
+        WSGI["Waitress en Windows<br/>Gunicorn si se publica en Linux"]
+        STATIC["WhiteNoise<br/>HTML, CSS y JavaScript compilados"]
+        API["Django REST Framework<br/>Validación, límites, errores"]
+        ORCHESTRATOR["Servicio de análisis"]
+        GEO["Puntos de control y ETA<br/>Malla uniforme del corredor"]
+        RISK["Reglas puras de riesgo<br/>Agregación por millas y ranking"]
+        CACHE["Caché temporal y limitadores<br/>Un proceso, varios hilos"]
+        WSGI --> STATIC
+        WSGI --> API --> ORCHESTRATOR
+        ORCHESTRATOR --> GEO
+        ORCHESTRATOR --> RISK
+        ORCHESTRATOR --> CACHE
+    end
+    subgraph SOURCES["Proveedores externos · únicamente modo real"]
+        ROUTES["OSRM público: automóvil<br/>TomTom opcional: camión"]
+        WEATHER["Open-Meteo<br/>Pronóstico y búsqueda de ciudades"]
+        TILES["OpenFreeMap<br/>Mapa base"]
+    end
+    DRIVER --> REACT
+    REACT -->|"POST /api/analyze/"| WSGI
+    STATIC --> REACT
+    CACHE --> ROUTES
+    CACHE --> WEATHER
+    MAP --> TILES
+    API -->|"Rutas, puntos, resultados y 49 horas"| REACT
+```
+
+La API es nuestra puerta de entrada a la lógica de negocio. Las APIs externas son fuentes de datos. React no guarda claves de TomTom ni decide qué ruta gana. Vite prepara archivos del frontend; no corre como servidor de producción.
+
+El mismo servicio local entrega el frontend y la API. En desarrollo se puede usar Vite en un segundo puerto; su proxy envía `/api` a Django. Los archivos de Render y Docker están preparados, pero **la publicación está pospuesta por instrucción del usuario**.
+
+## Recorrido de una solicitud
+
+1. El usuario elige ciudades de resultados de geocodificación, una salida con zona horaria explícita, carga y separación entre puntos.
+2. DRF valida tipos, rangos, coordenadas finitas, zona IANA y ventana de salida. Los límites protegen el presupuesto gratuito.
+3. El adaptador de rutas obtiene geometría y tiempo/distancia acumulados. OSRM usa anotaciones por arista. TomTom usa `progress`, interpolando según su contrato.
+4. El módulo geométrico ubica puntos sobre la ruta cada 10, 25 o 50 millas, incluidos ambos extremos, y calcula ETA acumulada.
+5. Se construye una malla del corredor independiente de los puntos de evaluación de rutas. Se deduplican coordenadas para consultar el clima.
+6. Open-Meteo devuelve series horarias; sus unidades se validan. La caché reduce solicitudes repetidas. Los errores dejan datos desconocidos.
+7. La lógica pura clasifica cada punto, aplica carga, agrega exposición por distancia y compara rutas elegibles.
+8. La respuesta incluye resultados del viaje y las 49 horas del corredor. Mover el control temporal sólo actualiza fuentes del mapa en memoria.
+
+## Registro de decisiones
+
+| Decisión | Por qué | Coste o límite aceptado |
+|---|---|---|
+| React + Django | Lo exige el ejercicio. React resuelve interacción; Django centraliza reglas y proveedores. | Dos ecosistemas de dependencias y una fase de compilación. |
+| Un repositorio y un servicio | Facilita instalar, revisar y ejecutar. Un mismo origen evita configuración CORS innecesaria. | Frontend y API se publican juntos. |
+| Reglas puras fuera de las vistas | Permite probar límites, carga, empates y datos ausentes sin red ni navegador. | Se necesita una capa pequeña de orquestación. |
+| MapLibre + OpenFreeMap | Mapa con WebGL, capas y perspectiva; no requiere clave para el mapa base. | Depende de WebGL y de un servicio público sin SLA. |
+| OSRM por defecto | Rutas reales sin clave: permite trabajar localmente inmediatamente. | Perfil de automóvil, sin restricciones legales o físicas de camión; visible en UI y README. |
+| TomTom como adaptador opcional | Su v1 documenta camiones, salida y tiempos acumulados. | No se pudo comprobar contra una cuenta real sin clave; pruebas de contrato simuladas. |
+| Alternativas y puntos de comparación | Si OSRM devuelve pocas alternativas, solicita rutas reales por puntos intermedios explícitos. | Pueden ser desvíos artificialmente largos. Se etiquetan y se comparan por clima; nunca se duplican rutas para fingir tres. |
+| Open-Meteo | Series horarias, múltiples coordenadas y horizonte suficiente sin clave para prototipado. | Uso no comercial del servicio gratuito, cuotas y ausencia de SLA. |
+| Mayor riesgo de los extremos | Aproximación conservadora, transparente y fácil de comprobar para cada intervalo. | No es una integral continua ni detecta todo evento entre puntos. |
+| Promedio ponderado por distancia | Un tramo de 2 millas no pesa lo mismo que uno de 50. | Los números 0–4 asignados a categorías son una decisión de diseño, no una probabilidad de accidente. |
+| Orden lexicográfico | Respeta las cuatro prioridades expresas. Ningún ahorro de tiempo compensa millas Severe mediante pesos arbitrarios. | Puede recomendar un desvío largo; es coherente con la prioridad pedida. |
+| Sin base de datos | No se solicitan cuentas ni historial persistente. | Caché y resultados del navegador se pierden al reiniciar. |
+| Un proceso con hilos | Caché y límites de proveedores son compartidos por las solicitudes de esta instancia. | Para varios procesos o réplicas hace falta Redis u otro coordinador compartido. |
+| Dos referencias temporales | El viaje necesita clima a la llegada; el heatmap necesita una hora común espacial. | Hay que explicarlo en la UI y el video para evitar confundirlos. |
+| Perspectiva en el mapa | Ofrece profundidad sin incorporar un motor 3D adicional. | No representa elevación real ni edificios 3D. |
+
+## Calidad, privacidad y operación
+
+- Claves sólo en `.env` ignorado o en el entorno del servidor. Los errores HTTP no imprimen URLs con credenciales. Los registros de `httpx` se reducen a advertencias.
+- Validación del backend además de controles del frontend. Las coordenadas no se convierten en URLs arbitrarias del usuario.
+- El servidor permite dos análisis simultáneos; las solicitudes de clima se agrupan y se espacian; OSRM se limita a menos de una solicitud por segundo.
+- Límites explícitos: salida hasta cuatro días, conducción hasta 48 horas, máximo de 450 puntos de ruta por viaje. Un dato fuera del horizonte queda Unknown.
+- La caché no es almacenamiento permanente. No hay cuentas, sesiones de usuario ni datos laborales ajenos al proyecto.
+- Animaciones con respuesta inmediata, transiciones interrumpibles cuando aplica y respeto por movimiento/transparencia reducidos. Tablas y controles con teclado complementan el mapa.
+- En despliegue: secreto obligatorio, `DEBUG=false`, hosts explícitos, HTTPS en Render y servidor WSGI apropiado. No se usa `runserver` como servidor de publicación.
+
+## Qué no afirmar en una defensa
+
+No afirmar que el riesgo es una predicción científica de accidentes, que OSRM garantiza acceso legal de un camión, que la capa difuminada tiene categorías exactas, que el modo demo muestra clima real, que el perfil opcional de TomTom fue probado con credenciales reales, ni que los tiempos incluyen descansos reglamentarios.
+
+En la preparaci?n de publicaci?n se deja HSTS preload desactivado intencionalmente: es una aplicaci?n nueva sin dominio definitivo y no se solicita una inclusi?n persistente en la lista de navegadores. `check --deploy` puede mostrar W021 por esa decisi?n. No implica una excepci?n al uso de HTTPS en Render.
