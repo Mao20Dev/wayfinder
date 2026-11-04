@@ -4,7 +4,7 @@ Fecha de trabajo: 3 de noviembre de 2026, Colombia. No representa una prueba de 
 
 | Comprobación | Resultado observado |
 |---|---|
-| Backend · pytest | 76 pruebas aprobadas, sin avisos en la ejecución final. |
+| Backend · pytest | 78 pruebas aprobadas, sin avisos en la ejecución final. |
 | Ruff | Sin errores. |
 | Django `check` | Sin problemas. |
 | Frontend | TypeScript y compilación de producción aprobados. |
@@ -36,3 +36,7 @@ Fecha de trabajo: 3 de noviembre de 2026, Colombia. No representa una prueba de 
 - La compilación informa de un chunk grande de MapLibre. Se entrega por separado y comprimido; no se ocultó el aviso. El mapa WebGL y su worker son la dependencia principal del frontend.
 
 Las capturas de escritorio, perspectiva, móvil y modo real se guardan en `artifacts/`, que está excluido del repositorio.
+
+## Correcci?n del l?mite de solicitudes
+
+Se separ? el contador de an?lisis reales del contador de b?squeda de ciudades. El demo no consume cuota de an?lisis reales ni se bloquea al explorar. El l?mite de cuatro an?lisis reales por minuto permanece, con un mensaje legible y segundos de espera. Dos pruebas verifican el aislamiento de los contadores y que el demo siga disponible despu?s de agotar la cuota real. Se comprobaron seis an?lisis demo consecutivos con respuesta 200 en el servidor local.

@@ -6,6 +6,7 @@ from pathlib import Path
 from django.conf import settings
 from django.http import FileResponse, JsonResponse
 from rest_framework.decorators import api_view, throttle_classes
+from rest_framework.exceptions import Throttled
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import exception_handler as drf_exception_handler
@@ -19,13 +20,32 @@ ANALYSIS_LOCK = threading.BoundedSemaphore(2)
 
 
 class AnalysisThrottle(AnonRateThrottle):
+    # A separate cache scope prevents city searches from consuming trip quota.
+    scope = "live_analysis"
     rate = "4/minute"
+
+    def allow_request(self, request, view):
+        # The offline scenario never calls paid/free-quota weather providers.
+        # Keep the shared concurrency bound, but do not interrupt exploration.
+        if isinstance(request.data, dict) and request.data.get("mode") == "demo":
+            return True
+        return super().allow_request(request, view)
 
 
 def exception_handler(exc, context):
     response = drf_exception_handler(exc, context)
     if response is not None:
-        response.data = {"error": "Please check your request or try again later.", "details": response.data}
+        if isinstance(exc, Throttled):
+            wait = int(exc.wait or 1)
+            response.data = {
+                "error": f"Please wait {wait} seconds before making another live request. Your current results are still available.",
+                "retry_after_seconds": wait,
+            }
+        else:
+            response.data = {
+                "error": "Please check your request or try again later.",
+                "details": response.data,
+            }
     return response
 
 

@@ -133,3 +133,29 @@ def test_health_search_validation_and_analysis_throttle():
     for _ in range(4):
         client.post("/api/analyze/", {}, format="json")
     assert client.post("/api/analyze/", {}, format="json").status_code == 429
+
+
+def test_city_search_and_configuration_do_not_consume_analysis_quota():
+    client = APIClient()
+    for _ in range(6):
+        assert client.get("/api/config/").status_code == 200
+        assert client.get("/api/locations/?q=a").status_code == 400
+    with patch("routing.views.analyze_trip", return_value={"mode": "live"}):
+        for _ in range(4):
+            assert client.post("/api/analyze/", payload("live"), format="json").status_code == 200
+        limited = client.post("/api/analyze/", payload("live"), format="json")
+    assert limited.status_code == 429
+    assert limited.json()["retry_after_seconds"] > 0
+    assert "current results are still available" in limited.json()["error"]
+    assert "details" not in limited.json()
+
+
+def test_demo_exploration_is_independent_of_live_analysis_limit():
+    client = APIClient()
+    with patch("routing.views.analyze_trip", return_value={"mode": "demo"}):
+        for _ in range(8):
+            assert client.post("/api/analyze/", payload(), format="json").status_code == 200
+        for _ in range(4):
+            assert client.post("/api/analyze/", payload("live"), format="json").status_code == 200
+        assert client.post("/api/analyze/", payload("live"), format="json").status_code == 429
+        assert client.post("/api/analyze/", payload(), format="json").status_code == 200
