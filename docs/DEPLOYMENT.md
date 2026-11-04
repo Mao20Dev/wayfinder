@@ -1,0 +1,28 @@
+# Public deployment
+
+- Application: https://wayfinder-w1d0.onrender.com
+- Repository: https://github.com/Mao20Dev/wayfinder
+- Render workspace: `Projects-testing`; project: `My project`; environment: `Production`.
+- Service: `wayfinder`, `srv-dblsapqfngtc73c6rgi0`.
+- First deploy: `dep-dblsaq2fngtc73c6rha0`, application commit `7fa189169828f4bf3ee7a372ca5dcd59e3103d42`.
+- Native Python 3.13.5 / Node 22.15.0, Oregon; **Free**, 0.1 CPU / 512 MB.
+- One Gunicorn worker with six threads; frontend and API share the HTTPS origin.
+- Build/start commands match `render.yaml`; health check is `/api/health/`.
+- Render generates the production Django secret. Debug is disabled, HTTPS is enforced, and the generated Render hostname is allowed. No secrets were committed.
+
+The repository was uploaded using the local Git Credential Manager account for `Mao20Dev`. Its GitHub Actions checks passed. This repository's local Git configuration enables the native account picker, without changing global Git settings.
+
+The service was connected through its public Git URL in the user's existing Opera session. This is a manual deployment connection, not a claim that a GitHub webhook was installed. For a new release, push the intended commit, open the Render service and choose **Manual Deploy → Deploy latest commit**. Keep the compute plan Free. Do not create a second instance or attach a paid datastore.
+
+Free instances sleep after 15 minutes without inbound traffic, clear in-memory analyses on restart and can take about a minute to wake. Saved routes remain in the visitor's browser, separate from server caches.
+
+For a public Opera smoke test:
+
+```powershell
+$env:WAYFINDER_BASE_URL = 'https://wayfinder-w1d0.onrender.com'
+python scripts/check_trip_planning_opera.py
+```
+
+The script uses an isolated Opera profile. It intercepts the Google Maps destination during link validation instead of sending trip coordinates to Google. It does not use existing user tabs, cookies or the clipboard.
+
+Public root and compiled assets returned 200, `/api/health/` returned the expected service identity, and HTTPS responses carried HSTS. The hosted app remains an assessment prototype with the routing and risk-model limitations documented in the README.

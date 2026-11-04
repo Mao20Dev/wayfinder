@@ -2,6 +2,10 @@
 
 A React + Django application for the Spotter Full Stack Developer assessment. Compare arrival-time weather exposure on three road routes, apply cargo-dependent risk rules, and explore an hourly corridor forecast from 0 to 48 hours.
 
+**Live app:** [wayfinder-w1d0.onrender.com](https://wayfinder-w1d0.onrender.com) · **Repository:** [Mao20Dev/wayfinder](https://github.com/Mao20Dev/wayfinder).
+
+Hosted as one Render Free Python web service in the `Projects-testing` workspace. Free instances sleep after inactivity, so the first visit can take around a minute. No paid service or database is required. The service currently uses the public Git repository source; subsequent releases can be started from **Manual Deploy** in Render.
+
 ## Run locally (Windows / PowerShell)
 
 ```powershell

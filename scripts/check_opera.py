@@ -15,6 +15,7 @@ from PIL import Image
 from playwright.sync_api import expect, sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
+BASE_URL = os.environ.get("WAYFINDER_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
 ARTIFACTS = ROOT / "artifacts"
 ARTIFACTS.mkdir(exist_ok=True)
 executables = sorted((Path(os.environ["LOCALAPPDATA"]) / "Programs/Opera").glob("*/opera.exe"), reverse=True)
@@ -40,9 +41,11 @@ with sync_playwright() as p:
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.on(
         "request",
-        lambda request: requests.append(request.url.split("8000")[-1]) if "/api/" in request.url else None,
+        lambda request: (
+            requests.append(request.url.removeprefix(BASE_URL)) if "/api/" in request.url else None
+        ),
     )
-    page.goto("http://127.0.0.1:8000/", wait_until="networkidle", timeout=60000)
+    page.goto(f"{BASE_URL}/", wait_until="networkidle", timeout=60000)
     assert page.locator("html").get_attribute("lang") == "en"
     assert page.locator(".language-switch").count() == 0
     assert page.get_by_role("button", name="Compare routes", exact=True).is_enabled()

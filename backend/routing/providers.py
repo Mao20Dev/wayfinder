@@ -59,7 +59,8 @@ def fetch_json(url, params=None, ttl=600, provider="External provider"):
         result = response.json()
     except (httpx.HTTPError, ValueError) as exc:
         # Never log the HTTP exception: its URL may contain API credentials.
-        logger.warning("%s request failed (%s)", provider, type(exc).__name__)
+        status = exc.response.status_code if isinstance(exc, httpx.HTTPStatusError) else "network"
+        logger.warning("%s request failed (%s; HTTP %s)", provider, type(exc).__name__, status)
         raise ProviderError(
             f"{provider} is unavailable or its request limit was reached. Please try again later."
         ) from None

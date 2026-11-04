@@ -35,12 +35,12 @@
 - [ ] TomTom contra una cuenta real: requiere clave; no necesario para el proveedor por defecto.
 - [ ] Revisión personal de Mauro y ensayo explicativo.
 
-## Publicación y entrega — pospuestas por instrucción de Mauro
+## Publicación y entrega
 
 - [x] Repositorio Git local independiente; secretos y artefactos ignorados.
 - [x] Configuración de Render y Docker preparada para revisión futura.
-- [ ] Repositorio remoto GitHub y enlace verificado.
-- [ ] Aplicación publicada y prueba desde su URL pública.
+- [x] Repositorio remoto GitHub: https://github.com/Mao20Dev/wayfinder; publicación autorizada por Mauro.
+- [x] Aplicación publicada en Render Free: https://wayfinder-w1d0.onrender.com; salud y recursos públicos verificados.
 - [ ] Loom de 5–10 minutos grabado personalmente y permisos verificados.
 - [ ] Confirmar política sobre IA y ayuda externa si se requiere.
 - [ ] Confirmar fecha de cierre e inicio del cómputo de cuatro días.

@@ -13,6 +13,7 @@ from PIL import Image
 from playwright.sync_api import expect, sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
+BASE_URL = os.environ.get("WAYFINDER_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
 ARTIFACTS = ROOT / "artifacts"
 EXECUTABLE = sorted((Path(os.environ["LOCALAPPDATA"]) / "Programs/Opera").glob("*/opera.exe"), reverse=True)[
     0
@@ -35,7 +36,7 @@ with sync_playwright() as playwright:
     errors, calls = [], []
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.on("request", lambda request: calls.append(request.url) if "/api/" in request.url else None)
-    page.goto("http://127.0.0.1:8000/", wait_until="networkidle", timeout=60000)
+    page.goto(f"{BASE_URL}/", wait_until="networkidle", timeout=60000)
     with page.expect_response(lambda response: "/api/analyze/" in response.url, timeout=30000) as analysis:
         page.get_by_role("button", name="Try a Chicago", exact=False).click()
     assert analysis.value.status == 200
