@@ -52,9 +52,17 @@ Los empates exactos se muestran como tales. Un identificador estable elige únic
 
 ## Corredor y control temporal
 
-El control recorre 49 instantes: desde la referencia horaria actual hasta +48 h. Cada celda del corredor usa la misma hora, a diferencia de los puntos de la ruta, que usan ETA. Moverlo no recalcula la recomendación ni altera la salida.
+La vista inicial muestra **clima durante el viaje**. La carretera seleccionada está dividida en tramos de la geometría original del proveedor y coloreada con la misma regla de riesgo que se usa para sumar millas. Los límites se cortan exactamente en los puntos de consulta; no se dibujan atajos rectos entre puntos distantes.
+
+El clima cercano se consulta en las coordenadas de cada celda, a la ETA del punto de ruta más próximo. Esa referencia temporal aproximada se explica en la interfaz. No significa que el camión viaje por las celdas laterales ni que sepamos la hora exacta de cada fenómeno entre puntos.
+
+La vista separada **Explorar próximas 48 h** recorre 49 instantes: desde la referencia horaria actual redondeada hasta +48 h. Cada celda usa una hora común. Mover el control no recalcula la recomendación ni altera la salida. En esta vista la carretera queda neutral para no confundir riesgo al paso con clima de una hora común.
 
 La capa difuminada es intensidad relativa, afectada por suavizado y escala. Sus colores no son categorías certificadas. Los puntos y las ventanas de detalle muestran valores y categorías exactos. Los huecos se representan como desconocidos y se notifican.
+
+## Recalcular carga
+
+Cambiar solamente la carga vuelve a aplicar las reglas en el backend usando el mismo pronóstico y salida. Se actualizan puntos, segmentos, exposición, celdas al paso, las 49 horas y la recomendación. No hay nuevas llamadas al clima ni a rutas. La caché dura 15 minutos, con un máximo de 24 análisis y un identificador aleatorio por viaje. Su vencimiento se informa y requiere comparar de nuevo.
 
 ## Fuentes técnicas
 

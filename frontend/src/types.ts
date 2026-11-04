@@ -15,6 +15,18 @@ export type Checkpoint = {
   risk_label: string
   complete: boolean
   factors: Record<string, number | null>
+  cargo_rule: string | null
+  drivers: string[]
+}
+export type RoadSegment = {
+  id: string
+  route_id: string
+  coordinates: [number, number][]
+  start_mile: number
+  end_mile: number
+  start_eta_epoch: number
+  end_eta_epoch: number
+  risk: number | null
 }
 export type Route = {
   id: string
@@ -23,6 +35,7 @@ export type Route = {
   duration_seconds: number
   via_comparison_point: boolean
   checkpoints: Checkpoint[]
+  segments: RoadSegment[]
   summary: {
     miles_by_risk: number[]
     unknown_miles: number
@@ -38,8 +51,19 @@ export type CorridorCell = {
   coordinates: [number, number]
   bounds: [number, number, number, number]
   hours: (Weather & { risk: number | null; complete: boolean })[]
+  arrivals: Record<
+    string,
+    Weather & {
+      risk: number | null
+      complete: boolean
+      eta_epoch: number
+      distance_miles: number
+      nearby_checkpoint_id: string
+    }
+  >
 }
 export type Analysis = {
+  analysis_id: string
   mode: 'live' | 'demo'
   origin: Location
   destination: Location
@@ -52,7 +76,18 @@ export type Analysis = {
   corridor: CorridorCell[]
   routing_provider: string
   weather_provider: string
-  recommendation: { route_id: string | null; tied_route_ids: string[]; reason: string }
+  recommendation: {
+    route_id: string | null
+    tied_route_ids: string[]
+    reason: string
+    decision: {
+      criterion: string
+      comparison_route_id?: string | null
+      advantage?: number | null
+      extra_minutes_vs_fastest?: number
+      eligible_count?: number
+    }
+  }
   notices: string[]
 }
 export type Trip = {
@@ -64,6 +99,7 @@ export type Trip = {
   spacing_miles: number
 }
 export type Layer = 'risk' | 'wind' | 'rain' | 'snow'
+export type MapView = 'arrival' | 'forecast'
 export const RISK_LABELS = ['Low', 'Moderate', 'High', 'Severe', 'No Travel']
 export const RISK_COLORS = ['#28846c', '#d1a32e', '#e58d3c', '#d35b54', '#922f54']
 export const ROUTE_COLORS = ['#1b7768', '#6680b0', '#aa83ac']

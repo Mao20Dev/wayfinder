@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from . import providers
-from .geometry import METERS_PER_MILE, checkpoints, corridor_grid
+from .geometry import METERS_PER_MILE, checkpoints, corridor_grid, distance, road_segments
 from .risk import classify, recommend, summarize
 from .weather import at_time, simulated_at
 
@@ -34,9 +34,6 @@ def analyze_trip(trip):
         )
         routes = fixture["routes"]
         origin, destination = DEMO_ORIGIN, DEMO_DESTINATION
-        # The reproducible sample starts at the heatmap reference, regardless of
-        # the date entered for a live trip. Response exposes the effective date.
-        departure = reference
         routing_provider = "OSRM recorded routes"
         notices.append("Demo: recorded road routes with synthetic weather. No live forecast is used.")
     else:
@@ -81,10 +78,26 @@ def analyze_trip(trip):
             cp.update(classify(cp["weather"], trip["load_lb"]))
         route["distance_miles"] = route["distance_meters"] / METERS_PER_MILE
         route["summary"] = summarize(route["checkpoints"], route["distance_miles"])
+        route["segments"] = road_segments(route)
         # Cumulative arrays are internal provider data, not needed by the client.
         route.pop("times", None)
         route.pop("distances", None)
     for cell in grid:
+        cell["arrivals"] = {}
+        for route in routes:
+            closest = min(
+                route["checkpoints"], key=lambda cp: distance(cp["coordinates"], cell["coordinates"])
+            )
+            sample = weather(cell["coordinates"], closest["eta_epoch"])
+            level = classify(sample, trip["load_lb"])
+            cell["arrivals"][route["id"]] = {
+                **sample,
+                "risk": level["risk"],
+                "complete": level["complete"],
+                "eta_epoch": closest["eta_epoch"],
+                "nearby_checkpoint_id": closest["id"],
+                "distance_miles": distance(cell["coordinates"], closest["coordinates"]) / METERS_PER_MILE,
+            }
         cell["hours"] = []
         for h in range(49):
             sample = weather(cell["coordinates"], reference + h * 3600)
@@ -112,3 +125,19 @@ def analyze_trip(trip):
         "weather_provider": "Synthetic scenario" if demo else "Open-Meteo",
         "notices": notices,
     }
+
+
+def reassess_load(analysis, load_lb):
+    """Re-use the exact weather and departure, without consuming any provider quota."""
+    analysis["load_lb"] = load_lb
+    for route in analysis["routes"]:
+        for cp in route["checkpoints"]:
+            cp.update(classify(cp["weather"], load_lb))
+        route["summary"] = summarize(route["checkpoints"], route["distance_miles"])
+        route["segments"] = road_segments(route)
+    for cell in analysis["corridor"]:
+        for sample in [*cell["hours"], *cell["arrivals"].values()]:
+            level = classify(sample, load_lb)
+            sample.update({"risk": level["risk"], "complete": level["complete"]})
+    analysis["recommendation"] = recommend(analysis["routes"])
+    return analysis

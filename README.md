@@ -7,7 +7,7 @@ A React + Django application for the Spotter Full Stack Developer assessment. Co
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
-Copy-Item .env.example .env
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 # In .env, set DJANGO_DEBUG=true for local development.
 npm ci --prefix frontend
 npm run build --prefix frontend
@@ -21,9 +21,16 @@ For frontend development, run Django on port 8000 and `npm run dev --prefix fron
 
 ## Try the application
 
-- **Demo scenario** starts automatically: three recorded OSRM road routes from Chicago to Detroit with clearly labeled **synthetic weather**. No forecast calls occur. Adjust cargo and spacing, then analyze again. The demo starts at the forecast reference hour; departure and city inputs are fixed.
-- **Live weather** searches cities, calculates actual road routes and fetches Open-Meteo hourly forecasts. The default provider needs no API key. Select cities from suggestions, choose a future departure and analyze. A cold trip can take tens of seconds because weather requests are batched and paced to respect free service limits.
-- Select routes or checkpoints, inspect arrival conditions, open the full checkpoint table, choose a weather layer and scrub the 0–48h timeline. The perspective button tilts the real map. It does not claim to display elevation or real terrain.
+- The UI opens in **Spanish**, with an **EN** switch for an English walkthrough. Both languages have the same controls and risk explanations.
+- **Ejemplo guiado / Guided example** starts automatically: three recorded OSRM road routes from Chicago to Detroit with clearly labeled **synthetic weather**. The cities are fixed; departure, cargo and spacing can be changed. Departure is respected. No forecast calls occur.
+- **Mi viaje real / My real trip** searches cities, calculates actual road routes and fetches Open-Meteo hourly forecasts. The default provider needs no API key. Select cities from suggestions, choose a future departure and compare. A cold trip can take tens of seconds because requests are batched and paced.
+- **Weather during your trip** colors the selected road by estimated arrival-time risk. Labels show weather and ETA. Nearby cells use the ETA of their closest weather checkpoint, an explicitly approximate view of the corridor. Other routes remain visible and selectable.
+- **Explore next 48 hours** has a separate timeline. The area shows a common forecast hour; scrubbing does not change the departure or recommendation and makes no API requests. Road colors become neutral in this view.
+- Changing only cargo automatically reassesses the stored forecast through Django. It does **not** call routing/weather providers or consume live-analysis quota. Saved analyses expire after 15 minutes and the cache holds at most 24 trips; an expired trip prompts a fresh comparison.
+- The recommendation explains the deciding numerical difference against the next eligible route and shows the time cost relative to the fastest eligible option. Exact ranking priorities are unchanged.
+- Select a road point, weather label or interval in the trip strip for its forecast and applied cargo/risk rule. The full table includes these explanations. The perspective button tilts the map; it does not represent real terrain.
+
+Live analysis is limited separately to four requests/minute; demo exploration and city searches do not consume that counter. The UI preserves current results and shows a countdown when live analysis is temporarily limited.
 
 **Provider distinction:** without `TOMTOM_API_KEY`, routes use the public OSRM **car profile**. Truck dimensions, legal truck access, gross weight and driving breaks are not modeled. Cargo is used only in the supplied weather-risk rules. When natural alternatives are scarce, up to two API requests via explicit comparison waypoints may supply additional genuine routes. These detours are labeled. If fewer than three distinct routes are available, the app displays the actual count and does not duplicate routes.
 
@@ -57,9 +64,9 @@ npm test --prefix frontend
 .\.venv\Scripts\python.exe backend/manage.py check
 ```
 
-Tests cover exact weather boundaries, decimal winds, strict cargo thresholds, unknown data, distance-weighted aggregation, ranking priorities, ties, ETA sampling, endpoint inclusion, unit conversions, forecast intervals, provider contracts, input validation, API errors and throttling. Tests do not depend on live provider availability.
+Tests cover exact weather boundaries, decimal winds, strict cargo thresholds, unknown data, distance-weighted aggregation, ranking priorities and explanations, ties, ETA sampling, polyline continuity and risk colors, unit conversions, forecast intervals, provider contracts, cached cargo reassessment, input validation, API errors and separate throttling scopes. Unit tests do not depend on live provider availability.
 
-`scripts/check_opera.py` runs additional browser checks using the locally installed Opera executable with an isolated temporary profile. It needs Python Playwright and does not use global input, existing browser tabs or the clipboard. Screenshots are written to ignored `artifacts/`.
+`scripts/check_opera.py` runs additional checks using installed Opera with an isolated temporary profile. It needs Python Playwright and Pillow and does not use global input, existing tabs or the clipboard. It checks nonzero canvas size, actual colored road pixels, weather labels, both languages, mobile layout, a real live trip, cargo reassessment without a new forecast and countdown feedback. The final 429 feedback check uses an explicitly mocked response. Screenshots and the test report are written to ignored `artifacts/`.
 
 ## Repository map
 

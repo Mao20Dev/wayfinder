@@ -1,6 +1,8 @@
 import bisect
 import math
 
+from .risk import interval_risk
+
 METERS_PER_MILE = 1609.344
 
 
@@ -41,6 +43,34 @@ def checkpoints(route, spacing_miles, departure_epoch):
                 "coordinates": [lng, lat],
                 "mile": position / METERS_PER_MILE,
                 "eta_epoch": departure_epoch + interpolate(duration, i, fraction),
+                "geometry_index": i,
+            }
+        )
+    return result
+
+
+def road_segments(route):
+    """Split the actual provider polyline at sampled locations, without shortcuts."""
+    result = []
+    for a, b in zip(route["checkpoints"], route["checkpoints"][1:], strict=False):
+        path = [
+            a["coordinates"],
+            *route["coordinates"][a["geometry_index"] + 1 : b["geometry_index"] + 1],
+            b["coordinates"],
+        ]
+        coordinates = [point for index, point in enumerate(path) if index == 0 or point != path[index - 1]]
+        if len(coordinates) < 2:
+            continue
+        result.append(
+            {
+                "id": f"{route['id']}-segment-{len(result)}",
+                "route_id": route["id"],
+                "start_mile": a["mile"],
+                "end_mile": b["mile"],
+                "start_eta_epoch": a["eta_epoch"],
+                "end_eta_epoch": b["eta_epoch"],
+                "risk": interval_risk(a["risk"], b["risk"]),
+                "coordinates": coordinates,
             }
         )
     return result

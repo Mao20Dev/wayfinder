@@ -5,8 +5,17 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import type { FeatureCollection } from 'geojson'
 import { Box, Compass, Layers2, Maximize2, Minus, Plus } from 'lucide-react'
 import { Tooltip } from '@mui/material'
-import type { Analysis, Checkpoint, Layer } from '../types'
-import { RISK_COLORS, ROUTE_COLORS } from '../types'
+import type { Analysis, Checkpoint, Layer, MapView } from '../types'
+import { RISK_COLORS } from '../types'
+import {
+  weatherNumber,
+  copy,
+  dominantWeather,
+  fmt,
+  riskNames,
+  timeAt,
+  type Language,
+} from '../i18n'
 import 'maplibre-gl/dist/maplibre-gl.css'
 
 maplibregl.setWorkerUrl(workerUrl)
@@ -23,6 +32,9 @@ export default function RouteMap({
   hour,
   layer,
   heatVisible,
+  view,
+  lang,
+  focusedPoint,
   onSelect,
   onCheckpoint,
 }: {
@@ -31,6 +43,9 @@ export default function RouteMap({
   hour: number
   layer: Layer
   heatVisible: boolean
+  view: MapView
+  lang: Language
+  focusedPoint: Checkpoint | null
   onSelect: (id: string) => void
   onCheckpoint: (cp: Checkpoint) => void
 }) {
@@ -45,6 +60,8 @@ export default function RouteMap({
     null,
   )
   const popup = useRef<maplibregl.Popup | null>(null)
+  const pins = useRef<maplibregl.Marker[]>([])
+  const t = copy[lang]
   const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
   useEffect(() => {
@@ -71,6 +88,8 @@ export default function RouteMap({
       if (instance.getLayer('building'))
         instance.setLayoutProperty('building', 'visibility', 'none')
       instance.addSource('routes', { type: 'geojson', data: empty })
+      instance.addSource('risk-segments', { type: 'geojson', data: empty })
+      instance.addSource('route-labels', { type: 'geojson', data: empty })
       instance.addSource('checkpoints', { type: 'geojson', data: empty })
       instance.addSource('corridor', { type: 'geojson', data: empty })
       instance.addSource('cells', { type: 'geojson', data: empty })
@@ -148,6 +167,16 @@ export default function RouteMap({
           'circle-opacity': 0.85,
         },
       })
+      instance.addLayer(
+        {
+          id: 'risk-road',
+          type: 'line',
+          source: 'risk-segments',
+          layout: { 'line-cap': 'round', 'line-join': 'round' },
+          paint: { 'line-color': ['get', 'color'], 'line-width': 6, 'line-opacity': 1 },
+        },
+        'checkpoint-halos',
+      )
       instance.addLayer({
         id: 'checkpoint-points',
         type: 'circle',
@@ -158,6 +187,19 @@ export default function RouteMap({
           'circle-stroke-width': 0.8,
           'circle-stroke-color': '#ffffff',
         },
+      })
+      instance.addLayer({
+        id: 'route-labels',
+        type: 'symbol',
+        source: 'route-labels',
+        layout: {
+          'text-field': ['get', 'label'],
+          'text-size': 12,
+          'text-font': ['Noto Sans Regular'],
+          'text-padding': 7,
+          'text-offset': [0, 1.6],
+        },
+        paint: { 'text-color': '#334d44', 'text-halo-color': '#fff', 'text-halo-width': 3 },
       })
       instance.addLayer({
         id: 'endpoints-base',
@@ -186,6 +228,18 @@ export default function RouteMap({
         const id = event.features?.[0]?.properties?.id
         if (id) callbacks.current.onSelect(id)
       })
+      instance.on('click', 'risk-road', (event) => {
+        const feature = event.features?.[0]
+        const route = callbacks.current.data?.routes.find(
+          (route) => route.id === feature?.properties?.route_id,
+        )
+        if (!route) return
+        const index = route.segments.findIndex((segment) => segment.id === feature?.properties?.id)
+        callbacks.current.onSelect(route.id)
+        callbacks.current.onCheckpoint(
+          route.checkpoints[Math.min(index + 1, route.checkpoints.length - 1)],
+        )
+      })
       instance.on('click', 'checkpoint-points', (event) => {
         const id = event.features?.[0]?.properties?.id
         const cp = callbacks.current.data?.routes
@@ -200,7 +254,7 @@ export default function RouteMap({
         if (route) callbacks.current.onSelect(route.id)
         callbacks.current.onCheckpoint(cp)
       }
-      for (const id of ['routes-main', 'checkpoint-points']) {
+      for (const id of ['routes-main', 'risk-road', 'checkpoint-points']) {
         instance.on('mouseenter', id, () => {
           instance.getCanvas().style.cursor = 'pointer'
         })
@@ -211,7 +265,7 @@ export default function RouteMap({
       instance.on('click', 'corridor-cells', (event) => {
         if (
           instance.queryRenderedFeatures(event.point, {
-            layers: ['checkpoint-points', 'routes-main'],
+            layers: ['checkpoint-points', 'routes-main', 'risk-road'],
           }).length
         )
           return
@@ -224,11 +278,27 @@ export default function RouteMap({
       })
       setReady(true)
     })
-    const resize = new ResizeObserver(() => instance.resize())
+    let previousWidth = container.current.clientWidth
+    const resize = new ResizeObserver(() => {
+      instance.resize()
+      const width = container.current?.clientWidth ?? 0
+      if (Math.abs(width - previousWidth) > 100 && callbacks.current.data) {
+        const bounds = new maplibregl.LngLatBounds()
+        callbacks.current.data.routes.forEach((route) =>
+          route.coordinates.forEach((point) => bounds.extend(point)),
+        )
+        instance.fitBounds(bounds, {
+          padding: { top: 95, bottom: 150, left: 35, right: 45 },
+          duration: 0,
+        })
+      }
+      previousWidth = width
+    })
     resize.observe(container.current)
     return () => {
       resize.disconnect()
       popup.current?.remove()
+      pins.current.forEach((pin) => pin.remove())
       instance.remove()
       map.current = null
       setReady(false)
@@ -238,12 +308,43 @@ export default function RouteMap({
   useEffect(() => {
     if (!ready || !map.current || !data) return
     const instance = map.current
-    const features: FeatureCollection['features'] = data.routes.map((route, i) => ({
+    const features: FeatureCollection['features'] = data.routes.map((route) => ({
       type: 'Feature',
-      properties: { id: route.id, selected: route.id === selected, color: ROUTE_COLORS[i % 3] },
+      properties: {
+        id: route.id,
+        selected: route.id === selected,
+        color: route.id === selected ? '#537a77' : '#a5adb7',
+      },
       geometry: { type: 'LineString', coordinates: route.coordinates },
     }))
     ;(instance.getSource('routes') as GeoJSONSource).setData(featureCollection(features))
+    const current = data.routes.find((route) => route.id === selected)
+    ;(instance.getSource('risk-segments') as GeoJSONSource).setData(
+      featureCollection(
+        (current?.segments ?? []).map((segment) => ({
+          type: 'Feature' as const,
+          geometry: { type: 'LineString' as const, coordinates: segment.coordinates },
+          properties: {
+            id: segment.id,
+            route_id: segment.route_id,
+            color: segment.risk === null ? '#798791' : RISK_COLORS[segment.risk],
+          },
+        })),
+      ),
+    )
+    instance.setLayoutProperty('risk-road', 'visibility', view === 'arrival' ? 'visible' : 'none')
+    ;(instance.getSource('route-labels') as GeoJSONSource).setData(
+      featureCollection(
+        data.routes.map((route, index) => ({
+          type: 'Feature' as const,
+          geometry: {
+            type: 'Point' as const,
+            coordinates: route.coordinates[Math.floor(route.coordinates.length * 0.58)],
+          },
+          properties: { label: `${copy[lang].route} ${index + 1}` },
+        })),
+      ),
+    )
     ;(instance.getSource('checkpoints') as GeoJSONSource).setData(
       featureCollection(
         data.routes.flatMap((route) =>
@@ -253,7 +354,12 @@ export default function RouteMap({
             properties: {
               id: cp.id,
               selected: route.id === selected,
-              color: cp.risk === null ? '#7c8792' : RISK_COLORS[cp.risk],
+              color:
+                view === 'forecast'
+                  ? '#91a09b'
+                  : cp.risk === null
+                    ? '#7c8792'
+                    : RISK_COLORS[cp.risk],
             },
           })),
         ),
@@ -276,7 +382,7 @@ export default function RouteMap({
         },
       ]),
     )
-  }, [data, selected, ready])
+  }, [data, selected, ready, view, lang])
 
   useEffect(() => {
     if (!ready || !map.current || !data) return
@@ -287,14 +393,19 @@ export default function RouteMap({
       duration: reduceMotion() ? 0 : 700,
       maxZoom: 10,
     })
-  }, [data, ready])
+    // A cargo reassessment preserves geometry and should not reset a driver's zoom.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.analysis_id, ready])
 
   useEffect(() => {
     if (!ready || !map.current || !data) return
     const features: FeatureCollection['features'] = []
     const cells: FeatureCollection['features'] = []
     for (const cell of data.corridor) {
-      const sample = cell.hours[hour]
+      const arrival = cell.arrivals[selected]
+      if (arrival && arrival.distance_miles > 45) continue
+      const sample = view === 'arrival' ? arrival : cell.hours[hour]
+      if (!sample) continue
       const value =
         layer === 'risk'
           ? sample.risk
@@ -307,7 +418,9 @@ export default function RouteMap({
       const intensity = value === null ? 0 : Math.min(1, value / max)
       const color = value === null ? '#8a929b' : RISK_COLORS[Math.min(4, Math.floor(intensity * 4))]
       const [x0, y0, x1, y1] = cell.bounds
-      const description = `Corridor forecast · +${hour}h\nWind: ${sample.wind_mph?.toFixed(1) ?? '—'} mph\nRain: ${sample.rain_in_hr?.toFixed(2) ?? '—'} in/h\nSnow: ${sample.snow_in_hr?.toFixed(2) ?? '—'} in/h\nRisk: ${sample.risk === null ? 'Unknown' : ['Low', 'Moderate', 'High', 'Severe', 'No Travel'][sample.risk]}`
+      const sampleTime =
+        view === 'arrival' ? arrival.eta_epoch : data.forecast_reference_epoch + hour * 3600
+      const description = `${view === 'arrival' ? t.arrival : t.forecast} · ${timeAt(sampleTime, data.origin.timezone, lang, true)}\n${t.wind}: ${fmt(sample.wind_mph, lang, 1)} mph\n${t.rain}: ${fmt(sample.rain_in_hr, lang, 2)} in/h\n${t.snow}: ${fmt(sample.snow_in_hr, lang, 2)} in/h\n${t.risk}: ${sample.risk === null ? t.unknown : riskNames[lang][sample.risk]}`
       features.push({
         type: 'Feature',
         geometry: { type: 'Point', coordinates: cell.coordinates },
@@ -335,7 +448,70 @@ export default function RouteMap({
     for (const id of ['corridor-heat', 'corridor-cells'])
       map.current.setLayoutProperty(id, 'visibility', heatVisible ? 'visible' : 'none')
     popup.current?.remove()
-  }, [data, hour, layer, heatVisible, ready])
+  }, [data, selected, hour, layer, heatVisible, ready, view, lang])
+
+  useEffect(() => {
+    pins.current.forEach((pin) => pin.remove())
+    pins.current = []
+    if (!map.current || !ready || !data || view !== 'arrival') return
+    const route = data.routes.find((route) => route.id === selected)
+    if (!route) return
+    const maximum = container.current && container.current.clientWidth < 500 ? 3 : 5
+    const points = route.checkpoints.slice(1, -1)
+    if (!points.length) return
+    const indices = new Set<number>()
+    for (let i = 0; i < maximum; i++)
+      indices.add(Math.min(points.length - 1, Math.floor(((i + 0.5) * points.length) / maximum)))
+    const worst = points.reduce(
+      (best, point, index) => ((point.risk ?? -1) > (points[best].risk ?? -1) ? index : best),
+      0,
+    )
+    indices.add(worst)
+    const icons = {
+      wind: '<path d="M3 8h11a3 3 0 1 0-3-3M2 12h17a3 3 0 1 1-3 3M4 17h5"/>',
+      rain: '<path d="M6 14a5 5 0 1 1 9-7 4 4 0 1 1 1 7M8 17l-1 3m6-3-1 3m6-3-1 3"/>',
+      snow: '<path d="M12 2v20M3 7l18 10M3 17 21 7M8 4l4 3 4-3M8 20l4-3 4 3"/>',
+    }
+    Array.from(indices)
+      .slice(0, maximum + 1)
+      .forEach((index) => {
+        const point = points[index]
+        const weather = dominantWeather(point)
+        const button = document.createElement('button')
+        button.type = 'button'
+        button.className = `weather-pin ${focusedPoint?.id === point.id ? 'focused' : ''}`
+        button.style.setProperty(
+          '--pin-color',
+          point.risk === null ? '#7c8792' : RISK_COLORS[point.risk],
+        )
+        button.setAttribute(
+          'aria-label',
+          `${t.atMile} ${fmt(point.mile, lang)} mi · ${t.pointDetail}`,
+        )
+        button.dataset.checkpointId = point.id
+        const icon = document.createElement('span')
+        icon.className = 'pin-icon'
+        icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${icons[weather.kind as keyof typeof icons]}</svg>`
+        const value = document.createElement('strong')
+        value.textContent = `${weatherNumber(weather.value, weather.kind, lang, weather.unit === 'mph' ? 0 : 2)} ${weather.unit}`
+        const time = document.createElement('small')
+        time.textContent = timeAt(point.eta_epoch, data.origin.timezone, lang)
+        button.append(icon, value, time)
+        button.addEventListener('click', (event) => {
+          event.stopPropagation()
+          callbacks.current.onCheckpoint(point)
+        })
+        pins.current.push(
+          new maplibregl.Marker({ element: button, anchor: 'bottom', offset: [0, -9] })
+            .setLngLat(point.coordinates)
+            .addTo(map.current!),
+        )
+      })
+    return () => {
+      pins.current.forEach((pin) => pin.remove())
+      pins.current = []
+    }
+  }, [data, selected, view, ready, lang, focusedPoint?.id])
 
   useEffect(() => {
     if (!cellInfo || !map.current) return
@@ -368,48 +544,44 @@ export default function RouteMap({
 
   return (
     <div className="map-shell">
-      <div
-        className="map-canvas"
-        ref={container}
-        aria-label="Interactive map of routes, weather corridor and checkpoints"
-      />
+      <div className="map-canvas" ref={container} aria-label={t.step3} />
       {!ready && !mapError && (
         <div className="map-loading">
           <Compass size={28} />
-          <span>Opening your map…</span>
+          <span>{t.mapLoading}</span>
         </div>
       )}
       {mapError && (
         <div className="map-loading" role="alert">
-          {mapError}
+          {t.mapUnavailable}
         </div>
       )}
       <div className="map-controls glass">
-        <Tooltip title="Zoom in" placement="left">
+        <Tooltip title={t.zoomIn} placement="left">
           <button
-            aria-label="Zoom in"
+            aria-label={t.zoomIn}
             onClick={() => map.current?.zoomIn({ duration: reduceMotion() ? 0 : 200 })}
           >
             <Plus size={18} />
           </button>
         </Tooltip>
-        <Tooltip title="Zoom out" placement="left">
+        <Tooltip title={t.zoomOut} placement="left">
           <button
-            aria-label="Zoom out"
+            aria-label={t.zoomOut}
             onClick={() => map.current?.zoomOut({ duration: reduceMotion() ? 0 : 200 })}
           >
             <Minus size={18} />
           </button>
         </Tooltip>
         <span className="control-separator" />
-        <Tooltip title="Fit all routes" placement="left">
-          <button aria-label="Fit all routes" onClick={fit}>
+        <Tooltip title={t.fit} placement="left">
+          <button aria-label={t.fit} onClick={fit}>
             <Maximize2 size={17} />
           </button>
         </Tooltip>
-        <Tooltip title={threeD ? 'Flat map' : 'Perspective map'} placement="left">
+        <Tooltip title={t.perspective} placement="left">
           <button
-            aria-label="Toggle perspective map"
+            aria-label={t.perspective}
             aria-pressed={threeD}
             className={threeD ? 'active' : ''}
             onClick={toggle3D}
@@ -424,7 +596,7 @@ export default function RouteMap({
         target="_blank"
         rel="noreferrer"
       >
-        Improve this map ↗
+        {lang === 'es' ? 'Mejorar este mapa' : 'Improve this map'} ↗
       </a>
     </div>
   )

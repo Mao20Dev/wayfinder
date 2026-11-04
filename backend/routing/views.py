@@ -1,9 +1,12 @@
 import logging
 import os
 import threading
+from copy import deepcopy
 from pathlib import Path
+from uuid import uuid4
 
 from django.conf import settings
+from django.core.cache import caches
 from django.http import FileResponse, JsonResponse
 from rest_framework.decorators import api_view, throttle_classes
 from rest_framework.exceptions import Throttled
@@ -12,11 +15,16 @@ from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import exception_handler as drf_exception_handler
 
 from .providers import ProviderError, geocode
-from .serializers import TripSerializer
-from .service import DEMO_DESTINATION, DEMO_ORIGIN, analyze_trip
+from .serializers import LoadSerializer, TripSerializer
+from .service import DEMO_DESTINATION, DEMO_ORIGIN, analyze_trip, reassess_load
 
 logger = logging.getLogger(__name__)
 ANALYSIS_LOCK = threading.BoundedSemaphore(2)
+
+
+class ReassessmentThrottle(AnonRateThrottle):
+    scope = "cargo_reassessment"
+    rate = "60/minute"
 
 
 class AnalysisThrottle(AnonRateThrottle):
@@ -85,7 +93,10 @@ def analyze(request):
             {"error": "Two trips are already being analyzed. Please try again shortly."}, status=503
         )
     try:
-        return Response(analyze_trip(serializer.validated_data))
+        result = analyze_trip(serializer.validated_data)
+        result["analysis_id"] = str(uuid4())
+        caches["analyses"].set(result["analysis_id"], result)
+        return Response(result)
     except ProviderError as exc:
         return Response({"error": str(exc)}, status=502)
     except Exception:
@@ -96,8 +107,28 @@ def analyze(request):
         ANALYSIS_LOCK.release()
 
 
+@api_view(["POST"])
+@throttle_classes([ReassessmentThrottle])
+def reassess(request):
+    serializer = LoadSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    analysis_id = str(serializer.validated_data["analysis_id"])
+    stored = caches["analyses"].get(analysis_id)
+    if stored is None:
+        return Response(
+            {
+                "error": "This trip has expired. Analyze it again to refresh the forecast.",
+                "code": "analysis_expired",
+            },
+            status=410,
+        )
+    return Response(reassess_load(deepcopy(stored), serializer.validated_data["load_lb"]))
+
+
 def index(request):
     path = Path(settings.BASE_DIR) / "frontend/dist/index.html"
     if not path.exists():
         return JsonResponse({"error": "Build the frontend first: cd frontend && npm run build"}, status=503)
-    return FileResponse(path.open("rb"), content_type="text/html")
+    response = FileResponse(path.open("rb"), content_type="text/html")
+    response["Cache-Control"] = "no-store"
+    return response

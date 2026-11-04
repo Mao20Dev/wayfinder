@@ -1,3 +1,14 @@
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+    public retryAfter = 0,
+    public code?: string,
+  ) {
+    super(message)
+  }
+}
+
 export async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const timeout = AbortSignal.timeout(150_000)
   const response = await fetch(url, {
@@ -14,8 +25,11 @@ export async function request<T>(url: string, init?: RequestInit): Promise<T> {
           )
           .join(' · ')
       : ''
-    throw new Error(
+    throw new ApiError(
       details || data?.error || `Request failed (${response.status}). Please try again.`,
+      response.status,
+      Number(data?.retry_after_seconds ?? response.headers.get('Retry-After') ?? 0),
+      data?.code,
     )
   }
   return data as T

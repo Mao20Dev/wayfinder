@@ -36,7 +36,13 @@ CACHES = {
         "LOCATION": "weather-routing",
         "TIMEOUT": 600,
         "OPTIONS": {"MAX_ENTRIES": 2000},
-    }
+    },
+    "analyses": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "trip-results",
+        "TIMEOUT": 900,
+        "OPTIONS": {"MAX_ENTRIES": 24},
+    },
 }
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"

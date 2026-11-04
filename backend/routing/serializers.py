@@ -49,3 +49,13 @@ class TripSerializer(serializers.Serializer):
                 {"destination": "Choose a destination different from the origin."}
             )
         return attrs
+
+
+class LoadSerializer(serializers.Serializer):
+    analysis_id = serializers.UUIDField()
+    load_lb = serializers.FloatField(min_value=0, max_value=200_000)
+
+    def validate_load_lb(self, value):
+        if not isfinite(value):
+            raise serializers.ValidationError("Cargo weight must be a finite number.")
+        return value

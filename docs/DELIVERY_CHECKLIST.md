@@ -13,6 +13,11 @@
 - [x] Mapa, puntos, tabla accesible, perspectivas y detalles.
 - [x] Corredor espacial y control 0–48h sin solicitudes al moverlo.
 - [x] Demo claramente simulado y modo real diferenciado.
+- [x] Carretera dividida en tramos de riesgo sobre la geometría original y etiquetas de clima al paso.
+- [x] Recomendación con diferencia concreta y coste de tiempo.
+- [x] Español e inglés, tabla de reglas y explicación por punto.
+- [x] Cambios de carga sin nuevas llamadas al proveedor; caché acotada y vencimiento explícito.
+- [x] Vistas separadas de clima al paso y pronóstico de 48 horas.
 
 ## Verificación realizada
 

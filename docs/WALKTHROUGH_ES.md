@@ -5,10 +5,10 @@ Duración objetivo: 8 minutos. Usar ejemplos que puedas explicar y ejecutar. El 
 | Minuto | Qué mostrar | Qué debes poder explicar |
 |---|---|---|
 | 0:00–0:45 | Pantalla principal y problema | Comparar clima a lo largo del tiempo de un viaje, no sólo en origen/destino. |
-| 0:45–2:00 | Demo Chicago–Detroit, tres tarjetas, recomendación | La geometría y los tiempos están registrados de OSRM. El clima del demo es simulado. Mostrar exposición Severe/High, promedio y duración. |
+| 0:45–2:00 | Ejemplo guiado Chicago–Detroit, carretera coloreada, etiquetas de clima y tres tarjetas | Geometría y tiempos registrados de OSRM; clima simulado. Mostrar la diferencia concreta que decide la recomendación y el tiempo adicional. |
 | 2:00–3:00 | Un punto y la tabla de puntos | Distancia sobre la ruta, ETA acumulada, unidades y peor condición. |
-| 3:00–4:00 | Cambiar carga y volver a analizar | Una regla concreta: 45 mph y más de 30,000 lb prohíbe viajar. La hora, ruta y clima deben ser visibles para afirmar que el ejemplo activa la regla. |
-| 4:00–5:00 | Heatmap +0/+24/+48 y perspectiva | Hora común del corredor frente a ETA individual de cada punto. La perspectiva es visual, sin elevación real. |
+| 3:00–4:00 | Cambiar carga y observar la reevaluación automática | Una regla concreta: 45 mph y más de 30,000 lb prohíbe viajar. El pronóstico se reutiliza sin llamadas nuevas. Mostrar un punto que realmente active esa regla. |
+| 4:00–5:00 | Cambiar de «Clima durante el viaje» a «Explorar próximas 48 h» y mover +0/+24/+48 | Hora común del corredor frente a ETA de cada punto. La exploración no altera salida ni recomendación. La perspectiva es visual, sin elevación real. |
 | 5:00–6:00 | Modo real | Consultar sólo una vez si la caché está fría; explicar que puede tardar. No fingir una tormenta en datos reales. |
 | 6:00–7:15 | `risk.py`, un test de límites y arquitectura | Reglas puras, comparación por prioridades, datos desconocidos y API keys sólo en backend. |
 | 7:15–8:00 | Limitaciones y ejecución | Perfil car de OSRM, TomTom opcional, ausencia de descansos, servicios gratuitos y cómo arrancar. |

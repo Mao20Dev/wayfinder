@@ -36,6 +36,7 @@ flowchart TB
     STATIC --> REACT
     CACHE --> ROUTES
     CACHE --> WEATHER
+    REACT -->|"Cambio de carga · POST /api/reassess/"| API
     MAP --> TILES
     API -->|"Rutas, puntos, resultados y 49 horas"| REACT
 ```
@@ -54,6 +55,11 @@ El mismo servicio local entrega el frontend y la API. En desarrollo se puede usa
 6. Open-Meteo devuelve series horarias; sus unidades se validan. La caché reduce solicitudes repetidas. Los errores dejan datos desconocidos.
 7. La lógica pura clasifica cada punto, aplica carga, agrega exposición por distancia y compara rutas elegibles.
 8. La respuesta incluye resultados del viaje y las 49 horas del corredor. Mover el control temporal sólo actualiza fuentes del mapa en memoria.
+9. El resultado se guarda en una caché separada y acotada, con un UUID aleatorio. Al cambiar carga, `/api/reassess/` recupera una copia y aplica nuevamente las reglas; no llama a proveedores. El original permanece inmutable para evitar que usuarios o solicitudes concurrentes modifiquen el pronóstico base.
+
+La carretera coloreada y las millas por riesgo comparten la función `interval_risk`. La geometría de cada tramo conserva los vértices de la API entre los puntos de consulta. Así se evita una discrepancia entre lo que el mapa dibuja y lo que la recomendación calcula.
+
+La interfaz separa sus responsabilidades en formulario, comparación, detalles del viaje, reglas y mapa. El mapa y su CSS se cargan de forma diferida; el contenedor tiene dimensiones explícitas para evitar que el estilo de MapLibre colapse el canvas. Español e inglés comparten las mismas explicaciones estructuradas.
 
 ## Registro de decisiones
 
