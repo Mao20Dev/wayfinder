@@ -18,6 +18,11 @@ Fecha de trabajo: 4 de noviembre de 2026, Colombia. Estas comprobaciones no equi
 | Idioma y flujo | Solo inglés, incluso con una preferencia antigua en español. Inicio sin consultas automáticas, un solo selector de rutas y muestreo desplegable. |
 | Opera · viaje real | Búsqueda de Chicago y comparación desde el formulario: respuesta 200, tres rutas y datos completos. |
 | Vista móvil de 390 px | Sin desbordamiento horizontal. El mapa se ajusta al cambiar el ancho. |
+| Espacio del mapa | Canvas de 1440 × 1100 y 390 × 844: ocupa la ventana completa sin desplazamiento de página. Paneles flotantes ocultables. |
+| Encuadre antes del análisis | Selección real de Seattle y Portland: extremos encuadrados sin llamar a `/api/analyze/`. |
+| Búsqueda pendiente | Se retiene una solicitud en el navegador para verificar extremos enfocados, pulsos y tres tarjetas pendientes; luego se continúa contra el backend real. |
+| Identidad de ruta | Best route señala la clasificación; Selected cambia al inspeccionar una alternativa. |
+| Pronóstico móvil y movimiento reducido | Abrir 48 horas cierra el panel inferior; capas y deslizador funcionan sin nuevas consultas. Con movimiento reducido no giran el indicador ni los pulsos. |
 | JavaScript en recorrido probado | Sin errores de ejecución. |
 | Mensaje de límite | Una respuesta 429 simulada, identificada como prueba, verifica la cuenta regresiva y conserva los resultados. |
 | Compresión | Una prueba verifica gzip y una reducción por debajo del 30% del JSON original. |
@@ -47,4 +52,4 @@ Fecha de trabajo: 4 de noviembre de 2026, Colombia. Estas comprobaciones no equi
 - `check --deploy` bajo configuración de Render muestra W021 intencional: no se solicita HSTS preload para un dominio todavía no definido. HTTPS sí se activa en esa configuración.
 - La compilación informa de un chunk grande de MapLibre. Se carga de forma diferida y comprimida; no se oculta el aviso.
 
-Capturas y reporte de navegador: `artifacts/planner-empty.png`, `artifacts/desktop.png`, `artifacts/perspective.png`, `artifacts/mobile.png`, `artifacts/live-desktop.png`, `artifacts/risk-road.png` y `artifacts/browser-validation.json`. No se incluyen en Git. Las capturas reales se toman antes de simular el mensaje 429.
+Capturas y reportes de navegador: `artifacts/planner-empty.png`, `artifacts/city-preview.png`, `artifacts/searching.png`, `artifacts/desktop.png`, `artifacts/perspective.png`, `artifacts/mobile.png`, `artifacts/mobile-forecast.png`, `artifacts/live-desktop.png`, `artifacts/risk-road.png`, `artifacts/browser-validation.json` y `artifacts/mobile-validation.json`. No se incluyen en Git. El recorrido completo incluye un viaje real; después se verificó por separado el ajuste final de espacio móvil y movimiento reducido. El único mensaje 429 se simula y las capturas de rutas se toman antes de esa simulación.

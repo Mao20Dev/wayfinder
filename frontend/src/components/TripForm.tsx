@@ -1,5 +1,5 @@
 import { Button, CircularProgress, TextField } from '@mui/material'
-import { ArrowDownUp, ArrowRight, ChevronDown } from 'lucide-react'
+import { ArrowDownUp, ArrowRight, ChevronDown, X } from 'lucide-react'
 import type { Language } from '../i18n'
 import type { Location } from '../types'
 import LocationField from './LocationField'
@@ -24,6 +24,7 @@ type Props = {
   onExample: () => void
   onLive: () => void
   onCancel: () => void
+  onClose: () => void
 }
 export default function TripForm({
   lang,
@@ -46,6 +47,7 @@ export default function TripForm({
   onExample,
   onLive,
   onCancel,
+  onClose,
 }: Props) {
   const busy = loading || reassessing
   const valid = !!origin && !!destination && loadValid && !!departure
@@ -60,8 +62,18 @@ export default function TripForm({
         }}
       >
         <div className="panel-title">
-          <h1>Plan your trip</h1>
-          <p>Compare routes by weather risk.</p>
+          <div>
+            <h1>Plan your trip</h1>
+            <p>Compare routes by weather risk.</p>
+          </div>
+          <button
+            className="icon-button"
+            type="button"
+            aria-label="Hide trip planner"
+            onClick={onClose}
+          >
+            <X size={18} />
+          </button>
         </div>
         <div className="location-fields">
           <div className="location-connector" aria-hidden="true">

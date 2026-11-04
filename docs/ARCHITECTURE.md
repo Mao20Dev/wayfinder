@@ -61,6 +61,10 @@ La carretera coloreada y las millas por riesgo comparten la función `interval_r
 
 La interfaz separa sus responsabilidades en formulario, comparación, detalles del viaje, reglas y mapa. El mapa y su CSS se cargan de forma diferida; el contenedor tiene dimensiones explícitas para evitar que el estilo de MapLibre colapse el canvas. La interfaz usa solo inglés. El inicio no ejecuta consultas automáticas: el usuario compara su viaje con clima real o abre explícitamente el ejemplo. Un único grupo de tarjetas controla la selección del mapa; las opciones de muestreo, reglas y tabla se revelan bajo demanda. Los detalles de cada punto aparecen sobre el mapa. El corredor con capas y deslizador se muestra en la vista independiente de 48 horas.
 
+El mapa ocupa `100dvh` y los paneles flotan encima. `useMapLayout` mide con `ResizeObserver` los paneles y el control temporal, reservando márgenes para la cámara sin reducir el canvas. En móvil se abre un solo panel inferior; cada panel tiene su propio desplazamiento. Seleccionar ambas ciudades encuadra sus coordenadas con una transición interrumpible antes de consultar rutas. Al editar una ciudad no se hace zoom hacia la otra mientras el campo está vacío. Una respuesta nueva encuadra la geometría real; cambiar carga u hora del corredor no reinicia el encuadre.
+
+Durante un análisis nuevo se retiran del mapa las rutas anteriores y se muestran los extremos seleccionados, pulsos y tarjetas pendientes. No se dibuja un camino provisional ni se inventa un porcentaje de progreso. La respuesta sólo aparece al completarse; los errores conservan el análisis anterior si aún corresponde al viaje. `Best route` se refiere a la clasificación meteorológica del ejercicio, `Joint best` a un empate exacto y `Selected` a la ruta que el usuario inspecciona.
+
 ## Registro de decisiones
 
 | Decisión | Por qué | Coste o límite aceptado |

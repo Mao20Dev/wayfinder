@@ -18,6 +18,8 @@
 - [x] Interfaz en inglés, un solo selector de rutas, tabla de reglas y explicación por punto.
 - [x] Cambios de carga sin nuevas llamadas al proveedor; caché acotada y vencimiento explícito.
 - [x] Vistas separadas de clima al paso y pronóstico de 48 horas.
+- [x] Mapa a pantalla completa, paneles flotantes y encuadre inmediato al elegir ciudades.
+- [x] Estado de búsqueda con extremos y pulsos; etiquetas Best route y Selected diferenciadas.
 
 ## Verificación realizada
 

@@ -5,7 +5,8 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import type { FeatureCollection } from 'geojson'
 import { Box, Compass, Layers2, Maximize2, Minus, Plus } from 'lucide-react'
 import { Tooltip } from '@mui/material'
-import type { Analysis, Checkpoint, Layer, MapView } from '../types'
+import type { Analysis, Checkpoint, Layer, Location, MapView } from '../types'
+import type { MapPadding } from '../useMapLayout'
 import { RISK_COLORS } from '../types'
 import {
   weatherNumber,
@@ -25,6 +26,10 @@ const featureCollection = (features: FeatureCollection['features']): FeatureColl
 })
 export default function RouteMap({
   data,
+  origin,
+  destination,
+  loading,
+  padding,
   selected,
   hour,
   layer,
@@ -36,6 +41,10 @@ export default function RouteMap({
   onCheckpoint,
 }: {
   data: Analysis | null
+  origin: Location | null
+  destination: Location | null
+  loading: boolean
+  padding: MapPadding
   selected: string
   hour: number
   layer: Layer
@@ -60,6 +69,7 @@ export default function RouteMap({
   } | null>(null)
   const popup = useRef<maplibregl.Popup | null>(null)
   const pins = useRef<maplibregl.Marker[]>([])
+  const previewPins = useRef<maplibregl.Marker[]>([])
   const t = copy[lang]
   const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
   useEffect(() => {
@@ -82,6 +92,8 @@ export default function RouteMap({
       return
     }
     map.current = instance
+    instance.on('movestart', () => container.current?.setAttribute('aria-busy', 'true'))
+    instance.on('moveend', () => container.current?.setAttribute('aria-busy', 'false'))
     instance.on('load', () => {
       if (instance.getLayer('building'))
         instance.setLayoutProperty('building', 'visibility', 'none')
@@ -276,36 +288,38 @@ export default function RouteMap({
       })
       setReady(true)
     })
-    let previousWidth = container.current.clientWidth
     const resize = new ResizeObserver(() => {
       instance.resize()
       const width = container.current?.clientWidth ?? 0
-      setCompact(width < 500)
-      if (Math.abs(width - previousWidth) > 100 && callbacks.current.data) {
-        const bounds = new maplibregl.LngLatBounds()
-        callbacks.current.data.routes.forEach((route) =>
-          route.coordinates.forEach((point) => bounds.extend(point)),
-        )
-        instance.fitBounds(bounds, {
-          padding: { top: 95, bottom: 150, left: 35, right: 45 },
-          duration: 0,
-        })
-      }
-      previousWidth = width
+      setCompact(width <= 980)
     })
     resize.observe(container.current)
     return () => {
       resize.disconnect()
       popup.current?.remove()
       pins.current.forEach((pin) => pin.remove())
+      previewPins.current.forEach((pin) => pin.remove())
       instance.remove()
       map.current = null
       setReady(false)
     }
   }, [])
   useEffect(() => {
-    if (!ready || !map.current || !data) return
+    if (!ready || !map.current) return
     const instance = map.current
+    if (!data) {
+      for (const source of [
+        'routes',
+        'risk-segments',
+        'route-labels',
+        'checkpoints',
+        'corridor',
+        'cells',
+      ])
+        (instance.getSource(source) as GeoJSONSource).setData(empty)
+      popup.current?.remove()
+      return
+    }
     const features: FeatureCollection['features'] = data.routes.map((route) => ({
       type: 'Feature',
       properties: {
@@ -339,7 +353,9 @@ export default function RouteMap({
             type: 'Point' as const,
             coordinates: route.coordinates[Math.floor(route.coordinates.length * 0.58)],
           },
-          properties: { label: `${copy[lang].route} ${index + 1}` },
+          properties: {
+            label: `${copy[lang].route} ${index + 1}${data.recommendation.tied_route_ids.includes(route.id) || route.id === data.recommendation.route_id ? (data.recommendation.tied_route_ids.length > 1 ? ' · Joint best' : ' · Best') : ''}${route.id === selected ? ' · Selected' : ''}`,
+          },
         })),
       ),
     )
@@ -363,36 +379,101 @@ export default function RouteMap({
         ),
       ),
     )
-    ;(instance.getSource('endpoints') as GeoJSONSource).setData(
-      featureCollection([
-        {
-          type: 'Feature',
-          properties: { label: 'A' },
-          geometry: { type: 'Point', coordinates: [data.origin.longitude, data.origin.latitude] },
-        },
-        {
-          type: 'Feature',
-          properties: { label: 'B' },
-          geometry: {
-            type: 'Point',
-            coordinates: [data.destination.longitude, data.destination.latitude],
-          },
-        },
-      ]),
-    )
   }, [data, selected, ready, view, lang])
+
   useEffect(() => {
-    if (!ready || !map.current || !data) return
+    if (!ready || !map.current) return
+    const locations = [origin, destination]
+    ;(map.current.getSource('endpoints') as GeoJSONSource).setData(
+      featureCollection(
+        data
+          ? locations.flatMap((location, index) =>
+              location
+                ? [
+                    {
+                      type: 'Feature' as const,
+                      properties: { label: index === 0 ? 'A' : 'B' },
+                      geometry: {
+                        type: 'Point' as const,
+                        coordinates: [location.longitude, location.latitude],
+                      },
+                    },
+                  ]
+                : [],
+            )
+          : [],
+      ),
+    )
+    previewPins.current.forEach((pin) => pin.remove())
+    previewPins.current = []
+    if (!data)
+      locations.forEach((location, index) => {
+        if (!location) return
+        const marker = document.createElement('div')
+        marker.className = `endpoint-preview ${loading ? 'searching' : ''}`
+        marker.dataset.location = location.name
+        for (let ring = 0; ring < 2; ring++) {
+          const pulse = document.createElement('i')
+          pulse.className = 'endpoint-ring'
+          marker.append(pulse)
+        }
+        const dot = document.createElement('strong')
+        dot.textContent = index === 0 ? 'A' : 'B'
+        const name = document.createElement('span')
+        name.className = 'endpoint-name'
+        name.textContent = location.name.split(',')[0]
+        marker.append(dot, name)
+        previewPins.current.push(
+          new maplibregl.Marker({ element: marker })
+            .setLngLat([location.longitude, location.latitude])
+            .addTo(map.current!),
+        )
+      })
+    return () => {
+      previewPins.current.forEach((pin) => pin.remove())
+      previewPins.current = []
+    }
+  }, [ready, origin, destination, !!data, loading])
+
+  function focusMap(duration = 900) {
+    if (!map.current) return
+    const coordinates: [number, number][] = data
+      ? data.routes.flatMap((route) => route.coordinates)
+      : [origin, destination].flatMap((location) =>
+          location ? [[location.longitude, location.latitude] as [number, number]] : [],
+        )
+    if (!coordinates.length) return
     const bounds = new maplibregl.LngLatBounds()
-    data.routes.forEach((route) => route.coordinates.forEach((point) => bounds.extend(point)))
+    coordinates.forEach((coordinate) => bounds.extend(coordinate))
     map.current.fitBounds(bounds, {
-      padding: { top: 100, left: 65, right: 65, bottom: 145 },
-      duration: reduceMotion() ? 0 : 700,
-      maxZoom: 10,
+      padding,
+      duration: reduceMotion() ? 0 : duration,
+      maxZoom: coordinates.length === 1 ? 10 : 9,
+      linear: true,
+      easing: (value) => 1 - Math.pow(1 - value, 3),
     })
-    // A cargo reassessment preserves geometry and should not reset a driver's zoom.
+  }
+  useEffect(() => {
+    if (!ready) return
+    // Clearing a field while typing should not zoom into the other city. Move
+    // as soon as both locations are selected, without waiting for analysis.
+    if (!data && (!origin || !destination)) return
+    focusMap()
+    // Reframe for selected cities, new geometry or overlay dimensions, never
+    // for cargo-only changes or weather-hour scrubbing. New moves interrupt old ones.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data?.analysis_id, ready])
+  }, [
+    ready,
+    data?.analysis_id,
+    origin?.latitude,
+    origin?.longitude,
+    destination?.latitude,
+    destination?.longitude,
+    padding.top,
+    padding.left,
+    padding.right,
+    padding.bottom,
+  ])
   useEffect(() => {
     if (!ready || !map.current || !data) return
     const features: FeatureCollection['features'] = []
@@ -534,10 +615,7 @@ export default function RouteMap({
       .addTo(map.current)
   }, [cellInfo])
   function fit() {
-    if (!map.current || !data) return
-    const bounds = new maplibregl.LngLatBounds()
-    data.routes.forEach((route) => route.coordinates.forEach((p) => bounds.extend(p)))
-    map.current.fitBounds(bounds, { padding: 90, duration: reduceMotion() ? 0 : 500 })
+    focusMap(550)
   }
   function toggle3D() {
     if (!map.current) return
@@ -550,7 +628,7 @@ export default function RouteMap({
   }
   return (
     <div className="map-shell">
-      <div className="map-canvas" ref={container} aria-label={t.step3} />
+      <div className="map-canvas" ref={container} aria-label={t.step3} aria-busy="false" />
       {!ready && !mapError && (
         <div className="map-loading">
           <Compass size={28} />

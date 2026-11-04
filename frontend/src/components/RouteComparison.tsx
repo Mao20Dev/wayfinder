@@ -41,7 +41,7 @@ export default function RouteComparison({
                 ) : recommended ? (
                   <span className="recommended-tag">
                     <Check size={12} />
-                    Recommended
+                    {data.recommendation.tied_route_ids.length > 1 ? 'Joint best' : 'Best route'}
                   </span>
                 ) : (
                   <span className="alternative-tag">
@@ -70,6 +70,12 @@ export default function RouteComparison({
               </div>
               <div className="route-secondary">
                 <span>Avg risk {fmt(summary.average_risk, lang, 2)} / 4</span>
+                {active && (
+                  <span className="selected-tag">
+                    <span />
+                    Selected
+                  </span>
+                )}
                 {summary.status === 'blocked' && (
                   <strong className="danger">
                     {fmt(summary.miles_by_risk[4], lang, 1)} mi No Travel
@@ -97,7 +103,9 @@ export function RecommendationBanner({ data, lang }: { data: Analysis; lang: Lan
       {best ? <ShieldCheck size={22} /> : <ShieldAlert size={22} />}
       <div>
         <h2>
-          {best ? `Route ${routeNumber(data, best)} recommended` : 'No route can be recommended'}
+          {best
+            ? `${data.recommendation.tied_route_ids.length > 1 ? 'Joint best' : 'Best route'} · Route ${routeNumber(data, best)}`
+            : 'No eligible route'}
         </h2>
         <p>{recommendationText(data, lang)}</p>
         {best && extra >= 0.5 && (

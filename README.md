@@ -21,10 +21,11 @@ For frontend development, run Django on port 8000 and `npm run dev --prefix fron
 
 ## Try the application
 
-- The interface is **English only**. The initial screen is a trip form and map, with **no automatic analysis** and no routing or weather calls until you request routes.
+- The interface is **English only**. The map fills the viewport from the first frame. The trip form floats on the left and route options appear on the right; both can be hidden. Mobile uses one scrollable bottom panel at a time. There is **no automatic analysis** or routing/weather call until you request routes.
+- Choosing both cities immediately fits the map to them, before any route response. Camera padding accounts for the floating panels. During analysis, endpoint rings, a search status and placeholder cards show activity without drawing an invented road or a false percentage. Reduced-motion preferences disable the camera animation and pulses.
 - Enter origin, destination, departure and cargo weight, then **Compare routes**. City suggestions use live geocoding; choose a suggestion to resolve coordinates. Live weather is the default.
 - **Weather sampling** expands to the required 10/25/50-mile interval choices. The default is 25 miles. These are forecast lookups, not truck stops.
-- A single set of route cards shows driving time, distance, estimated Severe/High miles, and distance-weighted average risk. The recommendation explains the deciding difference and any time cost. Select a card or a road to inspect that route.
+- A single set of route cards shows driving time, distance, estimated Severe/High miles, and distance-weighted average risk. **Best route** identifies the first-ranked eligible option under the assessment rules; exact ties show **Joint best**. **Selected** separately identifies the route being inspected, including when it is an alternative. The recommendation explains the deciding difference and any time cost.
 - **Along the route** colors the selected road using weather at each point's estimated arrival. Labels show weather and ETA. Selecting a point opens its forecast and applied rule directly over the map; **Weather details** opens the complete table.
 - **48-hour forecast** exposes the corridor heatmap, Risk/Wind/Rain/Snow layers and a 0–48-hour slider. The whole area shows a common forecast hour. Scrubbing does not change departure or recommendation and makes no API requests. Roads are neutral in this view.
 - **Risk rules** opens the full threshold and cargo-rule tables. Provider information and assumptions sit behind **Trip & data sources**; the car-profile limitation remains visible.
@@ -78,7 +79,7 @@ npm test --prefix frontend
 
 Tests cover exact weather boundaries, decimal winds, strict cargo thresholds, unknown data, distance-weighted aggregation, ranking priorities and explanations, ties, ETA sampling, polyline continuity and risk colors, unit conversions, forecast intervals, provider contracts, cached cargo reassessment, input validation, API errors and separate throttling scopes. Unit tests do not depend on live provider availability.
 
-`scripts/check_opera.py` runs additional checks using installed Opera with an isolated temporary profile. It needs Python Playwright and Pillow and does not use global input, existing tabs or the clipboard. It checks nonzero canvas size, actual colored road pixels, weather labels, English despite an old Spanish preference, collapsed options, a single route selector, mobile layout, a real live trip, cargo reassessment without a new forecast and countdown feedback. The final 429 feedback check uses an explicitly mocked response. Screenshots and the test report are written to ignored `artifacts/`.
+`scripts/check_opera.py` runs additional checks using installed Opera with an isolated temporary profile. It needs Python Playwright and Pillow and does not use global input, existing tabs or the clipboard. It checks a fullscreen canvas without page scrolling, camera focus immediately after city selection, loading feedback while an analysis request is held, actual colored road pixels, weather labels, English despite an old Spanish preference, panel controls, mobile layout, a real live trip, cargo reassessment without a new forecast and countdown feedback. The held request subsequently continues to the real backend; no road or weather results are fabricated for that check. The final 429 feedback check uses an explicitly mocked response. Screenshots and the report are written to ignored `artifacts/`.
 
 ## Repository map
 

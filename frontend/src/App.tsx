@@ -1,6 +1,17 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
-import { Alert, LinearProgress, Slider } from '@mui/material'
-import { ChevronDown, CloudRain, Info, Navigation, Pause, Play } from 'lucide-react'
+import { Alert, Slider } from '@mui/material'
+import {
+  Check,
+  ChevronDown,
+  Info,
+  ListFilter,
+  Navigation,
+  Pause,
+  Play,
+  Route as RouteIcon,
+  SlidersHorizontal,
+  X,
+} from 'lucide-react'
 import { ApiError, localDateTime, request } from './api'
 import { copy, fmt, riskNames, routeNumber, timeAt, type Language } from './i18n'
 import type { Analysis, Checkpoint, Layer, Location, MapView, Trip } from './types'
@@ -9,6 +20,7 @@ import TripForm from './components/TripForm'
 import RouteComparison, { RecommendationBanner } from './components/RouteComparison'
 import JourneyDetails from './components/JourneyDetails'
 import DetailsDialog from './components/DetailsDialog'
+import useMapLayout from './useMapLayout'
 const RouteMap = lazy(() => import('./components/RouteMap'))
 const CHICAGO: Location = {
   name: 'Chicago, Illinois, United States',
@@ -44,6 +56,9 @@ export default function App() {
   const [now, setNow] = useState(Date.now())
   const [lastBase, setLastBase] = useState('')
   const [dialog, setDialog] = useState<'method' | 'points' | null>(null)
+  const [plannerOpen, setPlannerOpen] = useState(true)
+  const [routesOpen, setRoutesOpen] = useState(true)
+  const [mobilePanel, setMobilePanel] = useState<'trip' | 'routes' | null>('trip')
   const followRecommendation = useRef(true)
   const activeRequest = useRef<AbortController | null>(null)
   const throttledMessage = useRef('')
@@ -57,6 +72,13 @@ export default function App() {
   const dirty = !!data && baseSignature !== lastBase
   const selectedRoute = data?.routes.find((route) => route.id === selected)
   const retrySeconds = Math.max(0, Math.ceil((retryUntil - now) / 1000))
+  const visibleData = !dirty && !loading ? data : null
+  const layout = useMapLayout(
+    plannerOpen,
+    routesOpen && (!!visibleData || loading),
+    mobilePanel,
+    mapView === 'forecast' && !!visibleData,
+  )
   const zone = data?.origin.timezone ?? 'UTC'
   useEffect(() => {
     document.documentElement.lang = 'en'
@@ -85,6 +107,10 @@ export default function App() {
     const controller = new AbortController()
     activeRequest.current = controller
     setLoading(true)
+    setPoint(null)
+    setMapView('arrival')
+    setRoutesOpen(true)
+    if (layout.compact) setMobilePanel('routes')
     setReassessing(false)
     setError('')
     setPlaying(false)
@@ -195,300 +221,386 @@ export default function App() {
     setPoint(cp)
     setMapView('arrival')
     setPlaying(false)
+    if (layout.compact) setMobilePanel(null)
   }
   function editLocation(setter: (value: Location | null) => void, value: Location | null) {
     setter(value)
     setMode('live')
   }
+  function togglePlanner() {
+    if (layout.compact) {
+      setPlannerOpen(true)
+      setMobilePanel((value) => (value === 'trip' ? null : 'trip'))
+    } else setPlannerOpen((value) => !value)
+  }
+  function toggleRoutes() {
+    if (layout.compact) {
+      setRoutesOpen(true)
+      setMobilePanel((value) => (value === 'routes' ? null : 'routes'))
+    } else setRoutesOpen((value) => !value)
+  }
+  function hidePanel(kind: 'trip' | 'routes') {
+    if (layout.compact) setMobilePanel(null)
+    else if (kind === 'trip') setPlannerOpen(false)
+    else setRoutesOpen(false)
+  }
+  const isBest =
+    visibleData &&
+    (visibleData.recommendation.route_id === selected ||
+      visibleData.recommendation.tied_route_ids.includes(selected))
+  const jointBest = (visibleData?.recommendation.tied_route_ids.length ?? 0) > 1
   return (
-    <div className="app">
+    <main
+      id="main"
+      ref={layout.frame}
+      className={`app map-workspace ${loading ? 'is-searching' : ''}`}
+      data-sheet-open={layout.compact && (layout.plannerVisible || layout.routesVisible)}
+      style={layout.style}
+    >
+      <div
+        className={`map-stage ${mapView === 'arrival' ? 'arrival-view' : 'forecast-view'}`}
+        aria-label="Route weather map"
+      >
+        <Suspense fallback={<div className="map-loading">{t.mapLoading}</div>}>
+          <RouteMap
+            data={visibleData}
+            origin={origin}
+            destination={destination}
+            loading={loading}
+            padding={layout.padding}
+            selected={selected}
+            hour={hour}
+            layer={layer}
+            heatVisible={!!visibleData && mapView === 'forecast'}
+            view={mapView}
+            lang={lang}
+            focusedPoint={point}
+            onSelect={selectRoute}
+            onCheckpoint={selectPoint}
+          />
+        </Suspense>
+      </div>
       <header className="topbar">
-        <a href="#main" className="wordmark">
+        <a href="#main" className="wordmark glass">
           <span className="brand-mark">
             <Navigation size={19} fill="currentColor" />
           </span>
           wayfinder<span className="wordmark-dot">.</span>
         </a>
-        <span className="breadcrumb">Weather-aware routing</span>
-        <button className="help-button" onClick={() => setDialog('method')}>
-          <Info size={16} /> Risk rules
-        </button>
+        <nav className="workspace-actions glass" aria-label="Map panels">
+          <button onClick={togglePlanner} aria-pressed={layout.plannerVisible}>
+            <SlidersHorizontal size={16} />
+            <span>Trip</span>
+          </button>
+          {(visibleData || loading) && (
+            <button onClick={toggleRoutes} aria-pressed={layout.routesVisible}>
+              <ListFilter size={16} />
+              <span>Routes{visibleData ? ` · ${visibleData.routes.length}` : ''}</span>
+            </button>
+          )}
+          <button
+            className="help-button"
+            aria-label="Risk rules"
+            onClick={() => setDialog('method')}
+          >
+            <Info size={16} />
+            <span>Risk rules</span>
+          </button>
+        </nav>
       </header>
-      <main id="main" className="workspace">
-        <div className="planner-layout">
-          <div className="form-column">
-            <TripForm
-              lang={lang}
-              origin={origin}
-              destination={destination}
-              departure={departure}
-              load={load}
-              spacing={spacing}
-              mode={mode}
-              loading={loading}
-              reassessing={reassessing}
-              loadValid={loadValid}
-              retrySeconds={retrySeconds}
-              onOrigin={(value) => editLocation(setOrigin, value)}
-              onDestination={(value) => editLocation(setDestination, value)}
-              onDeparture={setDeparture}
-              onLoad={setLoad}
-              onSpacing={setSpacing}
-              onSubmit={() => void analyze()}
-              onExample={() => void analyze('demo')}
-              onLive={() => void analyze('live')}
-              onCancel={() => {
-                activeRequest.current?.abort()
-                setLoading(false)
-              }}
-            />
-          </div>
-          <div className="results-column" aria-busy={loading || reassessing}>
-            {error && (
-              <Alert severity="warning" onClose={() => setError('')}>
-                {error}
-              </Alert>
-            )}
-            {dirty && !reassessing && (
-              <div className="stale-note" role="status">
-                Trip changed. Compare routes to update these results.
-              </div>
-            )}
-            {(loading || reassessing) && (
-              <div className="analysis-progress" role="status">
-                <span>{reassessing ? t.loadUpdating : t.analyzing}</span>
-                <LinearProgress />
-              </div>
-            )}
-            {data && <RecommendationBanner data={data} lang={lang} />}
-            {data && (
-              <RouteComparison data={data} selected={selected} lang={lang} onSelect={selectRoute} />
-            )}
-            <section className="map-panel" aria-label="Route weather map">
-              <div className="map-topline">
-                <div>
-                  <h2>
-                    {data
-                      ? `${data.origin.name.split(',')[0]} → ${data.destination.name.split(',')[0]}`
-                      : 'Weather along your route'}
-                  </h2>
-                  <span className="map-subtitle">
-                    {data
-                      ? `${t.route} ${routeNumber(data, selected)} · ${mapView === 'arrival' ? 'Forecast at your arrival time' : 'Hourly area forecast'}`
-                      : 'Compare routes to see the weather ahead.'}
-                  </span>
-                </div>
-                {data && (
-                  <span className={`data-badge ${data.mode === 'live' ? 'live' : ''}`}>
-                    <i />
-                    {data.mode === 'live' ? 'Live forecast' : 'Simulated weather'}
-                  </span>
-                )}
-              </div>
-              {data && (
-                <div className="map-toolbar">
-                  <div className="map-view-switch" aria-label="Weather view">
-                    <button
-                      aria-pressed={mapView === 'arrival'}
-                      className={mapView === 'arrival' ? 'active' : ''}
-                      onClick={() => {
-                        setMapView('arrival')
-                        setPlaying(false)
-                      }}
-                    >
-                      Along the route
-                    </button>
-                    <button
-                      aria-pressed={mapView === 'forecast'}
-                      className={mapView === 'forecast' ? 'active' : ''}
-                      onClick={() => setMapView('forecast')}
-                    >
-                      48-hour forecast
-                    </button>
-                  </div>
-                  <button className="text-button" onClick={() => setDialog('points')}>
-                    Weather details <ChevronDown size={14} />
-                  </button>
-                </div>
+      {layout.plannerVisible && (
+        <div ref={layout.planner} className="form-column floating-panel">
+          <TripForm
+            lang={lang}
+            origin={origin}
+            destination={destination}
+            departure={departure}
+            load={load}
+            spacing={spacing}
+            mode={mode}
+            loading={loading}
+            reassessing={reassessing}
+            loadValid={loadValid}
+            retrySeconds={retrySeconds}
+            onOrigin={(value) => editLocation(setOrigin, value)}
+            onDestination={(value) => editLocation(setDestination, value)}
+            onDeparture={setDeparture}
+            onLoad={setLoad}
+            onSpacing={setSpacing}
+            onSubmit={() => void analyze()}
+            onExample={() => void analyze('demo')}
+            onLive={() => void analyze('live')}
+            onClose={() => hidePanel('trip')}
+            onCancel={() => {
+              activeRequest.current?.abort()
+              setLoading(false)
+            }}
+          />
+        </div>
+      )}
+      <div className="map-context" aria-busy={loading || reassessing}>
+        {visibleData && (
+          <>
+            <div className="selected-route-chip glass">
+              <RouteIcon size={17} />
+              <strong>Route {routeNumber(visibleData, selected)}</strong>
+              <span>Selected</span>
+              {isBest && (
+                <span className="best-chip">
+                  <Check size={12} />
+                  {jointBest ? 'Joint best' : 'Best route'}
+                </span>
               )}
-              <div
-                className={`map-stage ${mapView === 'arrival' ? 'arrival-view' : 'forecast-view'}`}
-              >
-                <Suspense fallback={<div className="map-loading">{t.mapLoading}</div>}>
-                  <RouteMap
-                    data={data}
-                    selected={selected}
-                    hour={hour}
-                    layer={layer}
-                    heatVisible={!!data && mapView === 'forecast'}
-                    view={mapView}
-                    lang={lang}
-                    focusedPoint={point}
-                    onSelect={selectRoute}
-                    onCheckpoint={selectPoint}
-                  />
-                </Suspense>
-                {!data && (
-                  <div className="map-empty glass">
-                    <CloudRain size={25} />
-                    <h2>Find the better route for your load.</h2>
-                    <p>Enter your trip to compare driving time and weather risk.</p>
-                  </div>
-                )}
-                {data && mapView === 'forecast' && (
-                  <>
-                    <div className="map-top-overlay">
-                      <div className="map-layer-selector glass" aria-label="Forecast layer">
-                        {(['risk', 'wind', 'rain', 'snow'] as Layer[]).map((value) => (
-                          <button
-                            key={value}
-                            className={value === layer ? 'active' : ''}
-                            aria-pressed={value === layer}
-                            onClick={() => setLayer(value)}
-                          >
-                            {value === 'risk' ? 'Risk' : t[value]}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="timeline glass">
-                      <div className="timeline-heading">
-                        <strong>
-                          {timeAt(data.forecast_reference_epoch + hour * 3600, zone, lang, true)}
-                        </strong>
-                        <span>
-                          +{hour}h · {zone}
-                        </span>
-                      </div>
-                      <div className="timeline-controls">
-                        <button
-                          className="play-button"
-                          aria-label={playing ? t.pause : t.play}
-                          onClick={() => setPlaying((value) => !value)}
-                        >
-                          {playing ? (
-                            <Pause size={15} fill="currentColor" />
-                          ) : (
-                            <Play size={15} fill="currentColor" />
-                          )}
-                        </button>
-                        <div className="slider-wrap">
-                          <Slider
-                            value={hour}
-                            min={0}
-                            max={48}
-                            step={1}
-                            onChange={(_, value) => {
-                              setHour(value as number)
-                              setPlaying(false)
-                            }}
-                            aria-label="Forecast hour"
-                            getAriaValueText={(value) => `+${value} h`}
-                          />
-                          <div className="timeline-ticks">
-                            {[0, 12, 24, 36, 48].map((value) => (
-                              <span key={value}>+{value}h</span>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                      <p className="timeline-note">
-                        Area forecast only. Your trip and recommendation stay the same.
-                      </p>
-                    </div>
-                    <div className="heat-legend glass">
-                      <span>
-                        {layer === 'risk'
-                          ? 'Risk'
-                          : `${t[layer]} ${layer === 'wind' ? '(mph)' : '(in/h)'}`}{' '}
-                        · relative intensity
-                      </span>
-                      <span>Lower</span>
-                      <i />
-                      <span>Higher</span>
-                    </div>
-                  </>
-                )}
-                {data && selectedRoute && point && mapView === 'arrival' && (
-                  <JourneyDetails
-                    data={data}
-                    route={selectedRoute}
-                    point={point}
-                    lang={lang}
-                    onPoint={selectPoint}
-                    onClose={() => setPoint(null)}
-                  />
-                )}
+            </div>
+            <div className="map-toolbar glass">
+              <div className="map-view-switch" aria-label="Weather view">
+                <button
+                  aria-pressed={mapView === 'arrival'}
+                  className={mapView === 'arrival' ? 'active' : ''}
+                  onClick={() => {
+                    setMapView('arrival')
+                    setPlaying(false)
+                  }}
+                >
+                  Along the route
+                </button>
+                <button
+                  aria-pressed={mapView === 'forecast'}
+                  className={mapView === 'forecast' ? 'active' : ''}
+                  onClick={() => {
+                    setMapView('forecast')
+                    setPoint(null)
+                    if (layout.compact) setMobilePanel(null)
+                  }}
+                >
+                  48-hour forecast
+                </button>
               </div>
-              {data && (
-                <div className="map-footer">
-                  {mapView === 'arrival' ? (
-                    <div className="risk-legend" aria-label="Road risk at arrival">
-                      {riskNames[lang].map((name, risk) => (
-                        <span key={name}>
-                          <i style={{ background: RISK_COLORS[risk] }} />
-                          {name}
-                        </span>
-                      ))}
-                      {selectedRoute && !selectedRoute.summary.complete && (
-                        <span>
-                          <i style={{ background: '#84909b' }} />
-                          Unknown
-                        </span>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="forecast-help">
-                      The same hour across the corridor. Select an area for exact values.
-                    </p>
-                  )}
-                  {selectedRoute && (
-                    <span className="arrival-summary">
-                      Arrive{' '}
-                      {timeAt(data.departure_epoch + selectedRoute.duration_seconds, zone, lang)} ·{' '}
-                      {zone}
-                    </span>
-                  )}
-                </div>
-              )}
-            </section>
-            {data?.routes.some((route) => !route.summary.complete) && (
-              <Alert severity="warning">{t.dataWarning}</Alert>
-            )}
-            <div className="results-footnote">
-              {data && (
-                <details className="data-details">
-                  <summary>Trip &amp; data sources</summary>
-                  <p>
-                    {timeAt(data.departure_epoch, zone, lang, true)} · {fmt(data.load_lb, lang)} lb
-                    cargo · weather every {data.spacing_miles} mi.
-                  </p>
-                  <p>
-                    {data.routing_provider} · {data.weather_provider}. {t.noStops}
-                  </p>
-                  {data.notices.map((notice) => (
-                    <p key={notice}>{notice}</p>
-                  ))}
-                </details>
-              )}
-              <p className="routing-limit">
-                {data?.routing_provider.toLowerCase().includes('tomtom')
-                  ? 'Driving time excludes breaks.'
-                  : 'Car-profile routes. Truck clearance and legal access are not verified.'}
-              </p>
+              <button className="text-button" onClick={() => setDialog('points')}>
+                Weather details <ChevronDown size={14} />
+              </button>
+            </div>
+          </>
+        )}
+        {loading && (
+          <div className="search-status glass" role="status">
+            <span className="search-orbit" aria-hidden="true" />
+            <div>
+              <strong>Finding your best route</strong>
+              <span>Comparing roads and weather at arrival</span>
             </div>
           </div>
+        )}
+        {reassessing && (
+          <div className="updating-status glass" role="status">
+            Updating risk for your cargo...
+          </div>
+        )}
+        {dirty && !loading && (
+          <div className="stale-note glass" role="status">
+            Trip changed. Compare routes to update the map.
+          </div>
+        )}
+        {error && (
+          <Alert className="map-alert" severity="warning" onClose={() => setError('')}>
+            {error}
+          </Alert>
+        )}
+      </div>
+      {layout.routesVisible && (
+        <div
+          ref={layout.routes}
+          className="results-column floating-panel"
+          aria-busy={loading || reassessing}
+        >
+          <div className="results-heading">
+            <div>
+              <h2>
+                {loading ? 'Comparing routes' : `${visibleData?.routes.length ?? 0} route options`}
+              </h2>
+              <p>
+                {loading
+                  ? 'Using your departure and cargo'
+                  : `${visibleData?.origin.name.split(',')[0]} → ${visibleData?.destination.name.split(',')[0]}`}
+              </p>
+            </div>
+            <button
+              className="icon-button"
+              aria-label="Hide routes"
+              onClick={() => hidePanel('routes')}
+            >
+              <X size={18} />
+            </button>
+          </div>
+          {loading ? (
+            <div className="route-skeletons" aria-label="Routes are loading">
+              {[0, 1, 2].map((value) => (
+                <div className="route-skeleton" key={value}>
+                  <i />
+                  <i />
+                  <i />
+                </div>
+              ))}
+              <button
+                className="cancel-button"
+                onClick={() => {
+                  activeRequest.current?.abort()
+                  setLoading(false)
+                }}
+              >
+                Cancel search
+              </button>
+            </div>
+          ) : (
+            visibleData && (
+              <>
+                <RecommendationBanner data={visibleData} lang={lang} />
+                <RouteComparison
+                  data={visibleData}
+                  selected={selected}
+                  lang={lang}
+                  onSelect={selectRoute}
+                />
+                <div className="route-panel-footer">
+                  <span className={`data-badge ${visibleData.mode === 'live' ? 'live' : ''}`}>
+                    <i />
+                    {visibleData.mode === 'live' ? 'Live forecast' : 'Simulated weather'}
+                  </span>
+                  <details className="data-details">
+                    <summary>Trip &amp; data sources</summary>
+                    <p>
+                      {timeAt(visibleData.departure_epoch, zone, lang, true)} ·{' '}
+                      {fmt(visibleData.load_lb, lang)} lb cargo · weather every{' '}
+                      {visibleData.spacing_miles} mi.
+                    </p>
+                    <p>
+                      {visibleData.routing_provider} · {visibleData.weather_provider}. {t.noStops}
+                    </p>
+                    {visibleData.notices.map((notice) => (
+                      <p key={notice}>{notice}</p>
+                    ))}
+                  </details>
+                </div>
+              </>
+            )
+          )}
         </div>
-        <footer className="page-footer">
-          <span>
-            Weather by{' '}
-            <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">
-              Open-Meteo
-            </a>{' '}
-            · OpenStreetMap / OSRM · OpenFreeMap
-          </span>
-        </footer>
-      </main>
+      )}
+      {visibleData && (
+        <>
+          {mapView === 'forecast' && (
+            <div className="forecast-dock" ref={layout.dock}>
+              <div className="forecast-layers glass" aria-label="Forecast layer">
+                {(['risk', 'wind', 'rain', 'snow'] as Layer[]).map((value) => (
+                  <button
+                    key={value}
+                    className={value === layer ? 'active' : ''}
+                    aria-pressed={value === layer}
+                    onClick={() => setLayer(value)}
+                  >
+                    {value === 'risk' ? 'Risk' : t[value]}
+                  </button>
+                ))}
+              </div>
+              <div className="timeline glass">
+                <div className="timeline-heading">
+                  <strong>
+                    {timeAt(visibleData.forecast_reference_epoch + hour * 3600, zone, lang, true)}
+                  </strong>
+                  <span>
+                    +{hour}h · {zone}
+                  </span>
+                </div>
+                <div className="timeline-controls">
+                  <button
+                    className="play-button"
+                    aria-label={playing ? t.pause : t.play}
+                    onClick={() => setPlaying((value) => !value)}
+                  >
+                    {playing ? (
+                      <Pause size={15} fill="currentColor" />
+                    ) : (
+                      <Play size={15} fill="currentColor" />
+                    )}
+                  </button>
+                  <div className="slider-wrap">
+                    <Slider
+                      value={hour}
+                      min={0}
+                      max={48}
+                      step={1}
+                      onChange={(_, value) => {
+                        setHour(value as number)
+                        setPlaying(false)
+                      }}
+                      aria-label="Forecast hour"
+                      getAriaValueText={(value) => `+${value} h`}
+                    />
+                    <div className="timeline-ticks">
+                      {[0, 12, 24, 36, 48].map((value) => (
+                        <span key={value}>+{value}h</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="forecast-caption">
+                  <span>Area forecast only · trip unchanged</span>
+                  <span className="heat-scale">
+                    Relative intensity <i />
+                    {layer === 'wind' ? 'mph' : layer === 'risk' ? 'Risk' : 'in/h'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+          <div className="map-footer glass">
+            {mapView === 'arrival' ? (
+              <div className="risk-legend" aria-label="Road risk at arrival">
+                {riskNames[lang].map((name, risk) => (
+                  <span key={name}>
+                    <i style={{ background: RISK_COLORS[risk] }} />
+                    {name}
+                  </span>
+                ))}
+                {selectedRoute && !selectedRoute.summary.complete && (
+                  <span>
+                    <i style={{ background: '#84909b' }} />
+                    Unknown
+                  </span>
+                )}
+              </div>
+            ) : (
+              <p className="forecast-help">Area weather at one common hour</p>
+            )}
+            {selectedRoute && (
+              <span className="arrival-summary">
+                Arrive {timeAt(data!.departure_epoch + selectedRoute.duration_seconds, zone, lang)}{' '}
+                · {zone}
+              </span>
+            )}
+          </div>
+        </>
+      )}
+      {visibleData && selectedRoute && point && mapView === 'arrival' && (
+        <JourneyDetails
+          data={visibleData}
+          route={selectedRoute}
+          point={point}
+          lang={lang}
+          onPoint={selectPoint}
+          onClose={() => setPoint(null)}
+        />
+      )}
+      <div className="map-credits">
+        <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">
+          Weather by Open-Meteo
+        </a>
+        <span>
+          {data?.routing_provider.toLowerCase().includes('tomtom')
+            ? 'Driving time excludes breaks.'
+            : 'Car-profile routes. Truck access not verified.'}
+        </span>
+      </div>
       <DetailsDialog
         kind={dialog}
         data={data}
@@ -497,6 +609,6 @@ export default function App() {
         onClose={() => setDialog(null)}
         onPoint={selectPoint}
       />
-    </div>
+    </main>
   )
 }
