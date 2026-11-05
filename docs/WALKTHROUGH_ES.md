@@ -23,7 +23,7 @@ The app then checks the weather along each route for the time I'm expected to ar
 
 **Resultados y un punto del mapa**
 
-Here I'm comparing the weather I'd drive through. The app looks at Severe miles first, then High miles, then average risk. If the weather risk is the same, the faster trip wins. Routes marked No Travel or with missing forecasts are left out.
+The app uses wind, rain, snow and the cargo rules to calculate risk. Then it compares Severe miles, High miles and average risk, in that order. If those are equal, the faster trip wins. No Travel or missing weather means we can't recommend that route.
 
 I can select another route or click a point to see its arrival time and weather.
 
@@ -45,7 +45,7 @@ These are roads I know. A truck can't use every road a car can, which is why the
 
 The interface is built with React, and Django runs the API. The backend brings together the routes, weather and risk results.
 
-I kept the risk rules separate from the API calls so they're easier to test. I also validate inputs, keep API keys on the server, and reuse weather data to avoid unnecessary requests.
+I kept the risk rules separate from the API calls so they're easier to test. I also validate inputs, keep API keys on the server, and reuse weather data to avoid unnecessary requests. Automated tests cover the main rules.
 
 The README has more detail about the setup and decisions.
 

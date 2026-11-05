@@ -1,5 +1,15 @@
 # Public deployment
 
+## Current Maps handoff release
+
+Application commit `390d325`, deployed as `dep-dbltto8ae00c73fnm3cg` on November 4, 2026 (Colombia). The public root serves `index-__Pk2ydf.js`. GitHub Actions passed; production remains Render Free.
+
+Open in Google Maps is the primary action and is also available in saved trips. It sends the selected route endpoints and three ordered guide points, requesting navigation for live results and a preview for the weather example. GPX export was removed. Google Maps recalculates directions and does not receive the truck profile; the interface states this in one line.
+
+The public Opera smoke test passed fourteen checks, with three real Chicago–Detroit routes and three Cúcuta–Bucaramanga routes, complete weather, updated Maps endpoints after switching cities, local saves, departure changes and mobile layout. No JavaScript errors occurred. Test popups were intercepted before contacting Google. The backend tests and 23 frontend tests passed in CI.
+
+The remaining release entries below are historical verification records.
+
 - Application: https://wayfinder-w1d0.onrender.com
 - Repository: https://github.com/Mao20Dev/wayfinder
 - Render workspace: `Projects-testing`; project: `My project`; environment: `Production`.

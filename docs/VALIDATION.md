@@ -6,6 +6,8 @@ La acción principal y los guardados ofrecen Open in Google Maps. Se retiró GPX
 
 23 pruebas frontend pasan, incluidas la persistencia de un guardado de camión sin geometría GPX, puntos guía, navegación real frente a vista previa y bloqueo de rutas no elegibles. Compilación TypeScript/Vite y formato pasan. La prueba local de Opera también pasó con tres rutas reales Chicago–Detroit y tres Cúcuta–Bucaramanga, clima completo, puntos de Maps actualizados al segundo viaje y cero errores JavaScript. Las ventanas de Maps se interceptan antes de enviar coordenadas a Google.
 
+La misma prueba pasó contra la URL pública tras publicar `390d325`: catorce comprobaciones, tres rutas por viaje y cero errores JavaScript. GitHub Actions aprobó backend y frontend. Se verificó el bundle nuevo servido, además del estado del despliegue.
+
 Las secciones siguientes conservan los resultados de versiones anteriores; sus referencias a GPX no describen la interfaz actual.
 
 ## Perfil de ejemplo preseleccionado
