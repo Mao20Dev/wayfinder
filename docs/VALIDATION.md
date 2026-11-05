@@ -1,5 +1,13 @@
 # Validación
 
+## Enlace directo a Google Maps
+
+La acción principal y los guardados ofrecen Open in Google Maps. Se retiró GPX de la interfaz y su código de exportación. El enlace contiene extremos y hasta tres puntos guía; el modo real solicita navegación y el ejemplo meteorológico abre una vista previa. La línea visible aclara que Maps puede cambiar la ruta y no recibe los datos del camión.
+
+23 pruebas frontend pasan, incluidas la persistencia de un guardado de camión sin geometría GPX, puntos guía, navegación real frente a vista previa y bloqueo de rutas no elegibles. Compilación TypeScript/Vite y formato pasan. La prueba local de Opera también pasó con tres rutas reales Chicago–Detroit y tres Cúcuta–Bucaramanga, clima completo, puntos de Maps actualizados al segundo viaje y cero errores JavaScript. Las ventanas de Maps se interceptan antes de enviar coordenadas a Google.
+
+Las secciones siguientes conservan los resultados de versiones anteriores; sus referencias a GPX no describen la interfaz actual.
+
 ## Perfil de ejemplo preseleccionado
 
 El flujo inicial conserva origen, destino, salida y carga. Truck settings está cerrado y contiene un tractor-remolque de ejemplo con cinco ejes. La marca es opcional y no cambia medidas ni restricciones; se conserva como etiqueta. Custom permite editar los datos y mantiene validaciones.

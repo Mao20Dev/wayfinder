@@ -61,43 +61,6 @@ export function googleMapsUrl(directions: Directions, navigate = false) {
   return `https://www.google.com/maps/dir/?${parameters}`
 }
 
-export function truckGpx(
-  coordinates: Coordinate[],
-  vehicle: Truck,
-  cargo: number,
-  source: 'example' | 'custom' = 'custom',
-  brand = '',
-) {
-  const points = coordinates.map(([lon, lat]) => `<trkpt lat="${lat}" lon="${lon}"/>`).join('')
-  const text = `${source === 'example' ? 'EXAMPLE TRUCK FOR TESTING: dimensions and axle weight are assumptions. ' : ''}${brand ? `Brand label: ${brand}; not manufacturer specifications. ` : ''}Truck: ${vehicle.height_ft} ft high, ${vehicle.width_ft} ft wide, ${vehicle.length_ft} ft long; ${vehicle.empty_weight_lb + cargo} lb gross; ${vehicle.max_axle_weight_lb} lb maximum axle weight; ${vehicle.axles} axles. Non-hazardous cargo. Planning track only: configure this vehicle in a truck navigator and recheck restrictions before driving. GPX does not enforce access restrictions.`
-  const description = text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;')
-  return `<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="Wayfinder" xmlns="http://www.topografix.com/GPX/1/1"><metadata><desc>${description}</desc></metadata><trk><name>Wayfinder truck planning track</name><trkseg>${points}</trkseg></trk></gpx>`
-}
-
-export function downloadTruckGpx(
-  coordinates: Coordinate[],
-  vehicle: Truck,
-  cargo: number,
-  source: 'example' | 'custom' = 'custom',
-  brand = '',
-) {
-  const url = URL.createObjectURL(
-    new Blob([truckGpx(coordinates, vehicle, cargo, source, brand)], {
-      type: 'application/gpx+xml',
-    }),
-  )
-  const link = document.createElement('a')
-  link.href = url
-  link.download = 'wayfinder-truck-route.gpx'
-  link.click()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
-}
-
 function validCoordinate(value: unknown): value is Coordinate {
   return (
     Array.isArray(value) &&
@@ -120,7 +83,7 @@ function validSavedTrip(value: unknown): value is SavedTrip {
   if (trip.eligible !== undefined && typeof trip.eligible !== 'boolean') return false
   if (trip.profile !== undefined && !['truck', 'weather_demo'].includes(trip.profile)) return false
   if (trip.profile === 'truck') {
-    if (!trip.vehicle || !trip.coordinates || trip.vehicle.non_hazardous !== true) return false
+    if (!trip.vehicle || trip.vehicle.non_hazardous !== true) return false
     const fields: TruckInputs = { ...EMPTY_TRUCK, non_hazardous: true }
     for (const field of TRUCK_FIELDS) {
       const value = trip.vehicle[field.key]
@@ -195,7 +158,6 @@ export function saveTrip(data: Analysis, route: Route, previous: SavedTrip[]): S
       directions,
       profile: data.routing_profile,
       vehicle: data.vehicle,
-      coordinates: data.routing_profile === 'truck' ? route.coordinates : undefined,
       eligible: route.summary?.eligible ?? false,
       vehicleSource: data.vehicle_source ?? undefined,
       vehicleBrand: data.vehicle_brand,

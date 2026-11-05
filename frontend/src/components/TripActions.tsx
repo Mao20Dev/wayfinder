@@ -1,7 +1,7 @@
-import { Bookmark, Download, ExternalLink, Trash2, X } from 'lucide-react'
+import { Bookmark, Navigation, ExternalLink, Trash2, X } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle, IconButton } from '@mui/material'
 import { fmt, timeAt } from '../i18n'
-import { downloadTruckGpx, googleMapsUrl, type SavedTrip } from '../maps'
+import { googleMapsUrl, routeDirections, type SavedTrip } from '../maps'
 import type { Analysis, Route } from '../types'
 
 export function TripActions({
@@ -15,8 +15,7 @@ export function TripActions({
   busy: boolean
   onSave: () => void
 }) {
-  const exportable =
-    data.routing_profile === 'truck' && !!data.vehicle && route.summary.eligible && !busy
+  const ready = route.summary.eligible && !busy
   return (
     <section className="trip-actions" aria-label="Trip actions">
       <span className="planned-departure">
@@ -24,35 +23,26 @@ export function TripActions({
         {data.origin.timezone}
       </span>
       <div className="trip-action-buttons">
-        <button
-          className="start-trip"
-          disabled={!exportable}
-          onClick={() => {
-            if (data.vehicle)
-              downloadTruckGpx(
-                route.coordinates,
-                data.vehicle,
-                data.load_lb,
-                data.vehicle_source ?? 'custom',
-                data.vehicle_brand,
-              )
-          }}
-        >
-          <Download size={16} />{' '}
-          {data.vehicle_source === 'example' ? 'Export example GPX' : 'Export GPX'}
-        </button>
+        {ready ? (
+          <a
+            className="start-trip"
+            href={googleMapsUrl(routeDirections(route), data.mode === 'live')}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Navigation size={16} /> Open in Google Maps <ExternalLink size={13} />
+          </a>
+        ) : (
+          <button className="start-trip" disabled>
+            <Navigation size={16} /> Open in Google Maps
+          </button>
+        )}
         <button className="save-trip" onClick={onSave} disabled={busy}>
           <Bookmark size={16} />
           Save route
         </button>
       </div>
-      <p>
-        {data.mode === 'demo'
-          ? 'Weather example only. Truck access is not checked; navigation export is disabled.'
-          : data.vehicle_source === 'example'
-            ? 'Example truck for testing. Adjust the dimensions and axle weight for your vehicle before driving.'
-            : 'Planning track only. Use a truck navigator with the same vehicle profile; GPX does not enforce restrictions. Google Maps does not support this truck profile.'}
-      </p>
+      <p>Maps may change the route; truck settings are not transferred.</p>
     </section>
   )
 }
@@ -78,8 +68,8 @@ export function SavedTripsDialog({
       </DialogTitle>
       <DialogContent>
         <p className="saved-intro">
-          Saved on this device. Recheck weather and truck access before driving. Google Maps
-          previews use car directions.
+          Saved on this device. Recheck weather before leaving. Maps may change the route and does
+          not receive truck settings.
         </p>
         {!trips.length && <p className="saved-empty">Save a route after comparing your trip.</p>}
         {trips.map((trip) => (
@@ -104,36 +94,16 @@ export function SavedTripsDialog({
                 Planned {timeAt(trip.departure, trip.timezone ?? 'UTC', 'en', true)} ·{' '}
                 {trip.timezone ?? 'UTC'}
               </p>
-              {trip.profile === 'truck' &&
-                trip.vehicle &&
-                trip.coordinates &&
-                trip.eligible === true && (
-                  <button
-                    className="text-button"
-                    onClick={() =>
-                      downloadTruckGpx(
-                        trip.coordinates!,
-                        trip.vehicle!,
-                        trip.load,
-                        trip.vehicleSource ?? 'custom',
-                        trip.vehicleBrand,
-                      )
-                    }
-                  >
-                    {trip.vehicleSource === 'example' ? 'Export example GPX' : 'Export GPX'}{' '}
-                    <Download size={13} />
-                  </button>
+              <a
+                href={googleMapsUrl(
+                  trip.directions,
+                  trip.profile === 'truck' && trip.eligible === true,
                 )}
-              <details>
-                <summary>Car directions preview</summary>
-                <p>
-                  This preview drops truck restrictions and may use different roads. Do not use it
-                  as truck navigation.
-                </p>
-                <a href={googleMapsUrl(trip.directions)} target="_blank" rel="noopener noreferrer">
-                  Preview in Google Maps <ExternalLink size={13} />
-                </a>
-              </details>
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Open in Google Maps <ExternalLink size={13} />
+              </a>
             </div>
             <button
               className="icon-button"

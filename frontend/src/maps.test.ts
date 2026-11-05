@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
-import { googleMapsUrl, routeDirections, saveTrip } from './maps'
+import { describe, expect, it, vi } from 'vitest'
+import { googleMapsUrl, readSavedTrips, routeDirections, saveTrip } from './maps'
+import { exampleTruck, parseTruck } from './truck'
 import type { Analysis, Route } from './types'
 const route = {
   id: 'route-2',
@@ -14,6 +15,29 @@ const route = {
   })),
 } as Route
 describe('Google Maps handoff', () => {
+  it('preserves a saved truck route and its Maps guide points after reload', () => {
+    const data = {
+      origin: { name: 'Chicago' },
+      destination: { name: 'Detroit' },
+      routes: [route],
+      departure_epoch: 1000,
+      load_lb: 28000,
+      vehicle: parseTruck(exampleTruck(28000), 28000),
+      vehicle_source: 'example',
+      routing_profile: 'truck',
+      vehicle_brand: 'Volvo',
+    } as Analysis
+    const saved = saveTrip(data, route, [])
+    vi.stubGlobal('localStorage', { getItem: () => JSON.stringify(saved) })
+    try {
+      const restored = readSavedTrips()
+      expect(restored).toHaveLength(1)
+      expect(restored[0].vehicleBrand).toBe('Volvo')
+      expect(googleMapsUrl(restored[0].directions)).toBe(googleMapsUrl(routeDirections(route)))
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
   it('uses latitude,longitude, ordered route anchors and navigation intent', () => {
     const url = new URL(googleMapsUrl(routeDirections(route), true))
     expect(url.origin).toBe('https://www.google.com')

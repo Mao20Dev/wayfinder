@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { EMPTY_TRUCK, exampleTruck, parseTruck } from './truck'
-import { truckGpx } from './maps'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { createElement } from 'react'
 import { TripActions } from './components/TripActions'
@@ -19,18 +18,6 @@ describe('Truck routing and navigation boundaries', () => {
   it('starts with a usable example and updates its stated axle assumption with cargo', () => {
     expect(parseTruck(exampleTruck(28000), 28000)).toEqual(parseTruck(input, 28000))
     expect(parseTruck(exampleTruck(45000), 45000)?.max_axle_weight_lb).toBe(21817)
-    const gpx = truckGpx(
-      [
-        [-87, 41],
-        [-83, 42],
-      ],
-      parseTruck(exampleTruck(28000), 28000)!,
-      28000,
-      'example',
-      'Volvo & <label>',
-    )
-    expect(gpx).toContain('EXAMPLE TRUCK FOR TESTING')
-    expect(gpx).toContain('Volvo &amp; &lt;label&gt;')
   })
   it('requires actual measurements and coherent axle weights', () => {
     expect(parseTruck(EMPTY_TRUCK, 28000)).toBeNull()
@@ -39,23 +26,19 @@ describe('Truck routing and navigation boundaries', () => {
     expect(parseTruck({ ...input, max_axle_weight_lb: '100' }, 28000)).toBeNull()
     expect(parseTruck(input, 28000)?.height_ft).toBe(13.5)
   })
-  it('exports the complete track and the truck profile without implying navigation enforcement', () => {
-    const gpx = truckGpx(
-      [
+  it('hands selected route anchors to Maps and leaves unknown or blocked routes disabled', () => {
+    const route = {
+      summary: { eligible: true },
+      coordinates: [
         [-87, 41],
-        [-85, 42],
         [-83, 42],
       ],
-      parseTruck(input, 28000)!,
-      28000,
-    )
-    expect(gpx.match(/<trkpt /g)).toHaveLength(3)
-    expect(gpx).toContain('60000 lb gross')
-    expect(gpx).toContain('GPX does not enforce access restrictions')
-    expect(gpx).toContain('lat="41" lon="-87"')
-  })
-  it('never hands truck navigation to Google Maps or enables demo exports', () => {
-    const route = { summary: { eligible: true } } as Route
+      distance_miles: 100,
+      checkpoints: [0, 25, 50, 75, 100].map((mile) => ({
+        mile,
+        coordinates: [-87 + mile / 25, 41 + mile / 100],
+      })),
+    } as Route
     const data = {
       mode: 'demo',
       routing_profile: 'weather_demo',
@@ -65,9 +48,9 @@ describe('Truck routing and navigation boundaries', () => {
     const demo = renderToStaticMarkup(
       createElement(TripActions, { data, route, busy: false, onSave() {} }),
     )
-    expect(demo).not.toContain('href=')
-    expect(demo).not.toContain('Start trip')
-    expect(demo).toMatch(/disabled=""[^>]*>.*?Export GPX/)
+    expect(demo).toContain('Open in Google Maps')
+    expect(demo).not.toContain('dir_action=navigate')
+    expect(demo).not.toContain('GPX')
     const truck = renderToStaticMarkup(
       createElement(TripActions, {
         data: {
@@ -81,7 +64,18 @@ describe('Truck routing and navigation boundaries', () => {
         onSave() {},
       }),
     )
-    expect(truck).toContain('GPX does not enforce restrictions')
-    expect(truck).not.toContain('href=')
+    expect(truck).toContain('dir_action=navigate')
+    expect(truck).toContain('waypoints=')
+    expect(truck).toContain('truck settings are not transferred')
+    const blocked = renderToStaticMarkup(
+      createElement(TripActions, {
+        data,
+        route: { ...route, summary: { ...route.summary, eligible: false } },
+        busy: false,
+        onSave() {},
+      }),
+    )
+    expect(blocked).not.toContain('href=')
+    expect(blocked).toContain('disabled')
   })
 })
