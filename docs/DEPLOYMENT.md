@@ -49,3 +49,11 @@ Later documentation-only commits do not require rebuilding the running applicati
 - An additional direct TomTom check requested `report=effectiveSettings`. The response confirmed commercial truck mode, height 4.12 m, width 2.60 m, length 21.34 m, gross weight 27,216 kg, maximum axle weight 7,712 kg and five axles for the documented test case. The private API key was excluded from the diagnostic artifact.
 
 The previous release's Google Maps Start trip behavior has been removed. GPX is a planning track, not a truck navigator or a guarantee that every restriction is mapped. Configure a truck navigator with the same vehicle profile and review current restrictions before driving.
+
+## Preselected example truck
+
+Application commit `5e84e57` adds a default five-axle example, optional brand labels and editable Custom settings. The four assessment inputs are sufficient for testing. Example assumptions are identified in results, saved trips and GPX exports; they are not manufacturer specifications.
+
+GitHub Actions passed: https://github.com/Mao20Dev/wayfinder/actions/runs/41945495160. Render clean rebuild `dep-dbltfa9srm7s73ec6r7g` succeeded on November 4, 2026 (Colombia), and the public root was verified to serve the new `index-BpFPG06n.js` bundle. An earlier successful deploy still served the prior frontend and backend; rebuilding with **Clear build cache & deploy** resolved the observed mismatch. The underlying cause was not confirmed.
+
+The public Opera check then passed all thirteen checks, including the preselected profile without manual setup, brand selection without measurement changes, three real TomTom routes, complete weather, labeled example GPX, local saves, mobile layout and new routes after departure changes. No JavaScript errors occurred. Automated checks passed: 121 backend tests and 23 frontend tests.

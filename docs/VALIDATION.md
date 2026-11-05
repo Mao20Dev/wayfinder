@@ -8,6 +8,8 @@ La API también resuelve el perfil de ejemplo si no se envía vehículo. Sus sup
 
 121 pruebas de backend y 23 de frontend pasan, además de compilación y formato. La prueba de navegador vigente comprueba inicio sin completar medidas, cambio opcional de marca sin alterar dimensiones, GPX identificado como ejemplo y comportamiento distinto de carga entre Example y Custom.
 
+También pasó contra la URL pública tras la reconstrucción limpia de `5e84e57`: trece comprobaciones, tres rutas TomTom, clima completo, marca opcional y cero errores JavaScript. La versión se verificó por su bundle servido y su comportamiento, además del estado del panel de Render.
+
 ## Corrección de rutas de camión
 
 TomTom Evaluation se comprobó con un perfil de prueba: 13.5 ft de alto, 8.5 ft de ancho, 70 ft de largo, 32,000 lb de peso vacío, 28,000 lb de carga, 17,000 lb en el eje más cargado y cinco ejes. La solicitud aplicó 60,000 lb de peso total, modo camión comercial y conversiones conservadoras de unidades; devolvió tres rutas reales. Estos valores son un caso de prueba, no medidas predeterminadas para un camión de Mauro.
