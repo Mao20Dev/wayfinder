@@ -1,5 +1,13 @@
 # Validación
 
+## Perfil de ejemplo preseleccionado
+
+El flujo inicial conserva origen, destino, salida y carga. Truck settings está cerrado y contiene un tractor-remolque de ejemplo con cinco ejes. La marca es opcional y no cambia medidas ni restricciones; se conserva como etiqueta. Custom permite editar los datos y mantiene validaciones.
+
+La API también resuelve el perfil de ejemplo si no se envía vehículo. Sus supuestos se identifican en resultados, guardados y GPX; el peso por eje estimado se actualiza con la carga. Custom sigue exigiendo un peso por eje actualizado después de cambiar carga. No se presentan estos valores como datos de fabricante.
+
+121 pruebas de backend y 23 de frontend pasan, además de compilación y formato. La prueba de navegador vigente comprueba inicio sin completar medidas, cambio opcional de marca sin alterar dimensiones, GPX identificado como ejemplo y comportamiento distinto de carga entre Example y Custom.
+
 ## Corrección de rutas de camión
 
 TomTom Evaluation se comprobó con un perfil de prueba: 13.5 ft de alto, 8.5 ft de ancho, 70 ft de largo, 32,000 lb de peso vacío, 28,000 lb de carga, 17,000 lb en el eje más cargado y cinco ejes. La solicitud aplicó 60,000 lb de peso total, modo camión comercial y conversiones conservadoras de unidades; devolvió tres rutas reales. Estos valores son un caso de prueba, no medidas predeterminadas para un camión de Mauro.

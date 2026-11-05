@@ -44,9 +44,31 @@ def payload():
 def test_truck_routes_require_an_explicit_profile():
     data = payload()
     data.pop("vehicle")
+    data["vehicle_source"] = "custom"
     response = APIClient().post("/api/analyze/", data, format="json")
     assert response.status_code == 400
     assert "vehicle" in response.json()["details"]
+
+
+def test_assessment_inputs_resolve_an_example_truck_without_manual_profile():
+    data = payload()
+    data.pop("vehicle")
+    trip = TripSerializer(data=data)
+    assert trip.is_valid(), trip.errors
+    assert trip.validated_data["vehicle_source"] == "example"
+    assert trip.validated_data["vehicle"] == TRUCK
+
+
+def test_example_axle_assumption_updates_with_cargo_and_is_not_brand_specific():
+    data = payload()
+    data.update({"vehicle_source": "example", "vehicle_brand": "Volvo", "load_lb": 45000})
+    trip = TripSerializer(data=data)
+    assert trip.is_valid(), trip.errors
+    vehicle = trip.validated_data["vehicle"]
+    assert vehicle["max_axle_weight_lb"] == 21817
+    assert vehicle["empty_weight_lb"] == 32000
+    assert vehicle["height_ft"] == 13.5
+    assert trip.validated_data["vehicle_brand"] == "Volvo"
 
 
 @pytest.mark.parametrize(

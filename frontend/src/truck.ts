@@ -12,6 +12,28 @@ export const EMPTY_TRUCK: TruckInputs = {
   axles: '',
   non_hazardous: false,
 }
+export const TRUCK_BRANDS = [
+  'Freightliner',
+  'Kenworth',
+  'Peterbilt',
+  'Volvo',
+  'Mack',
+  'International',
+  'Other',
+]
+
+export function exampleTruck(cargo: number): TruckInputs {
+  const weight = Number.isFinite(cargo) && cargo >= 0 ? cargo : 0
+  return {
+    empty_weight_lb: '32000',
+    height_ft: '13.5',
+    width_ft: '8.5',
+    length_ft: '70',
+    max_axle_weight_lb: String(Math.ceil(((32000 + weight) * 17) / 60)),
+    axles: '5',
+    non_hazardous: true,
+  }
+}
 export const TRUCK_FIELDS = [
   { key: 'height_ft', label: 'Height', unit: 'ft', min: 1, max: 30, step: '0.01' },
   { key: 'width_ft', label: 'Width', unit: 'ft', min: 1, max: 20, step: '0.01' },

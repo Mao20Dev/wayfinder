@@ -47,6 +47,10 @@ def analyze_trip(trip):
             origin, destination, trip["departure"], trip["vehicle"], trip["load_lb"]
         )
         routing_provider = "TomTom truck"
+        if trip.get("vehicle_source") == "example":
+            notices.append(
+                "Example truck dimensions and an estimated axle load are used for testing. Brand is a label, not manufacturer specifications. Adjust the profile for your vehicle before driving."
+            )
         notices.append(
             "Truck dimensions, gross and axle weights were sent to TomTom. Restrictions depend on provider map coverage; signs, permits and driving breaks still require review. Non-hazardous cargo only."
         )
@@ -124,6 +128,8 @@ def analyze_trip(trip):
         "vehicle": trip.get("vehicle") if not demo else None,
         "gross_weight_lb": gross_weight_lb(trip["vehicle"], trip["load_lb"]) if not demo else None,
         "routing_profile": "weather_demo" if demo else "truck",
+        "vehicle_source": trip.get("vehicle_source", "custom") if not demo else None,
+        "vehicle_brand": trip.get("vehicle_brand", "") if not demo else "",
         "routes": routes,
         "recommendation": recommend(routes),
         "corridor": grid,

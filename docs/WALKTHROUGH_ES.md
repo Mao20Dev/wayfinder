@@ -4,7 +4,7 @@ Duración objetivo: 2–3 minutos. Mostrar solo la aplicación, sin código, hab
 
 | Minuto | Qué mostrar | Qué debes poder explicar |
 |---|---|---|
-| 0:00–0:25 | Ciudades, salida, carga y Truck profile | Medidas cargadas y peso vacío del conjunto. Peso total = vacío + carga. Peso del eje más cargado medido, no un promedio. Solo carga no peligrosa. |
+| 0:00–0:25 | Ciudades, salida y carga; Truck settings puede quedarse cerrado | Está preseleccionado un perfil de ejemplo de cinco ejes, con supuestos visibles. La marca es opcional. Para un vehículo real se ajustan medidas y peso por eje en Custom. Peso total = vacío + carga. |
 | 0:25–1:10 | Compare truck routes, tarjetas y un punto | TomTom recibe perfil de camión; Open-Meteo aporta clima a la ETA. Severe miles, High miles, promedio ponderado y duración deciden, en ese orden. No Travel o datos faltantes excluyen la recomendación. |
 | 1:10–1:50 | 48-hour forecast y capas | Toda el área usa una hora común; el deslizador trabaja con datos cargados y no modifica salida ni recomendación. |
 | 1:50–2:20 | Best time to leave, Save route y Export GPX | Comparación meteorológica sobre carreteras actuales. Aplicar otra hora real comprueba rutas de nuevo. El GPX es planificación; no impone restricciones. |

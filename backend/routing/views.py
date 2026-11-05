@@ -183,6 +183,8 @@ def departure(request):
                 "load_lb": values["load_lb"],
                 "spacing_miles": stored["spacing_miles"],
                 "vehicle": stored.get("vehicle"),
+                "vehicle_source": stored.get("vehicle_source", "custom"),
+                "vehicle_brand": stored.get("vehicle_brand", ""),
             }
         )
         serializer.is_valid(raise_exception=True)

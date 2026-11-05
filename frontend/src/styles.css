@@ -206,6 +206,23 @@ body {
 .truck-gross {
   font-weight: 600;
 }
+.truck-select {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.8rem 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.truck-select select {
+  width: 100%;
+  min-width: 0;
+  padding: 0.65rem;
+  border: 1px solid #d2ddd8;
+  border-radius: 8px;
+  font: inherit;
+  color: #273c35;
+  background: white;
+}
 .truck-provider-status {
   font-size: 0.75rem;
   color: #7a5425;

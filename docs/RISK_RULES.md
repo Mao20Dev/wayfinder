@@ -68,7 +68,7 @@ Los pronósticos horarios originales permanecen en la caché privada. Comparar l
 
 ## Recalcular carga
 
-Las reglas meteorológicas usan exclusivamente la carga, como exige la prueba. La selección de carreteras usa el peso total: vehículo y remolque vacíos más carga. Por eso cambiar carga real invalida la ruta, borra el peso de eje cargado y exige comparar otra vez con datos actualizados. `/api/reassess/` rechaza ese cambio con 409. Solo el ejemplo meteorológico recalcula carga sobre carreteras fijas sin proveedores. La caché dura 15 minutos, con un máximo de 24 análisis y un identificador aleatorio por viaje.
+Las reglas meteorológicas usan exclusivamente la carga. Las carreteras usan peso total: vehículo y remolque vacíos más carga. Cambiar carga real invalida la ruta y exige comparar otra vez. Custom borra el dato de eje cargado para actualizarlo; el perfil de ejemplo actualiza automáticamente su suposición de peso por eje, identificada como estimación. `/api/reassess/` rechaza cambios reales de carga con 409. Solo el ejemplo meteorológico mantiene carreteras fijas sin proveedores. La caché dura 15 minutos y admite 24 análisis.
 
 ## Fuentes técnicas
 

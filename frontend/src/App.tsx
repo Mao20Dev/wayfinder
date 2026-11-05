@@ -26,7 +26,7 @@ import { FORECAST_SCALES } from './forecastField'
 import DeparturePlanner from './components/DeparturePlanner'
 import { TripActions, SavedTripsDialog } from './components/TripActions'
 import { readSavedTrips, saveTrip, writeSavedTrips } from './maps'
-import { EMPTY_TRUCK, parseTruck } from './truck'
+import { exampleTruck, parseTruck } from './truck'
 const RouteMap = lazy(() => import('./components/RouteMap'))
 const CHICAGO: Location = {
   name: 'Chicago, Illinois, United States',
@@ -46,7 +46,9 @@ export default function App() {
   const [destination, setDestination] = useState<Location | null>(DETROIT)
   const [departure, setDeparture] = useState(localDateTime)
   const [load, setLoad] = useState('28000')
-  const [truck, setTruck] = useState(EMPTY_TRUCK)
+  const [truckSource, setTruckSource] = useState<'example' | 'custom'>('example')
+  const [truckBrand, setTruckBrand] = useState('')
+  const [customTruck, setCustomTruck] = useState(() => exampleTruck(28000))
   const [truckAvailable, setTruckAvailable] = useState<boolean | null>(null)
   const [spacing, setSpacing] = useState(25)
   const [mode, setMode] = useState<'live' | 'demo'>('live')
@@ -77,8 +79,10 @@ export default function App() {
   latest.current = { lang, selected, point }
   const t = copy[lang]
   const loadNumber = Number(load)
+  const truck = truckSource === 'example' ? exampleTruck(loadNumber) : customTruck
   const vehicle = parseTruck(truck, loadNumber)
-  const truckSignature = mode === 'live' ? JSON.stringify([truck, loadNumber]) : null
+  const vehicleSignature = JSON.stringify([truck, loadNumber, truckSource, truckBrand])
+  const truckSignature = mode === 'live' ? vehicleSignature : null
   const baseSignature = JSON.stringify([
     mode,
     origin,
@@ -158,7 +162,7 @@ export default function App() {
       tripDestination,
       departure,
       spacing,
-      nextMode === 'live' ? JSON.stringify([truck, loadNumber]) : null,
+      nextMode === 'live' ? vehicleSignature : null,
     ])
     const trip: Trip = {
       mode: nextMode,
@@ -168,6 +172,7 @@ export default function App() {
       load_lb: loadNumber,
       spacing_miles: spacing,
       ...(nextMode === 'live' && vehicle ? { vehicle } : {}),
+      ...(nextMode === 'live' ? { vehicle_source: truckSource, vehicle_brand: truckBrand } : {}),
     }
     try {
       const result = await request<Analysis>('/api/analyze/', {
@@ -445,16 +450,26 @@ export default function App() {
             loadValid={loadValid}
             retrySeconds={retrySeconds}
             truck={truck}
+            truckSource={truckSource}
+            truckBrand={truckBrand}
+            onTruckSource={(value) => {
+              if (value === 'custom' && truckSource === 'example') setCustomTruck(truck)
+              setTruckSource(value)
+            }}
+            onTruckBrand={setTruckBrand}
             truckValid={!!vehicle}
             truckAvailable={truckAvailable}
-            onTruck={setTruck}
+            onTruck={(value) => {
+              setCustomTruck(value)
+              setTruckSource('custom')
+            }}
             onOrigin={(value) => editLocation(setOrigin, value)}
             onDestination={(value) => editLocation(setDestination, value)}
             onDeparture={setDeparture}
             onLoad={(value) => {
               setLoad(value)
-              if (mode === 'live' && value !== load)
-                setTruck((current) => ({ ...current, max_axle_weight_lb: '' }))
+              if (mode === 'live' && truckSource === 'custom' && value !== load)
+                setCustomTruck((current) => ({ ...current, max_axle_weight_lb: '' }))
             }}
             onSpacing={setSpacing}
             onSubmit={() => void analyze()}
@@ -617,6 +632,10 @@ export default function App() {
                       </p>
                       {visibleData.vehicle && (
                         <p>
+                          {visibleData.vehicle_source === 'example' ? 'Example assumptions. ' : ''}
+                          {visibleData.vehicle_brand
+                            ? `${visibleData.vehicle_brand} (brand label). `
+                            : ''}
                           Truck: {visibleData.vehicle.height_ft} ft high ·{' '}
                           {visibleData.vehicle.width_ft} ft wide · {visibleData.vehicle.length_ft}{' '}
                           ft long · {fmt(visibleData.gross_weight_lb, lang)} lb gross ·{' '}
@@ -771,7 +790,9 @@ export default function App() {
         </a>
         <span>
           {visibleData?.routing_profile === 'truck'
-            ? 'Truck profile applied · check signs and local restrictions.'
+            ? visibleData.vehicle_source === 'example'
+              ? 'Example truck assumptions · adjust for your vehicle.'
+              : 'Truck profile applied · check signs and local restrictions.'
             : visibleData?.mode === 'demo'
               ? 'Weather demo only · not a truck navigation route.'
               : 'Truck dimensions and weights required.'}

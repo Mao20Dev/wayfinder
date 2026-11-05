@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from rest_framework import serializers
 
-from .vehicle import gross_weight_lb
+from .vehicle import BRANDS, example_vehicle, gross_weight_lb
 
 
 class LocationSerializer(serializers.Serializer):
@@ -51,11 +51,18 @@ class TripSerializer(serializers.Serializer):
     load_lb = serializers.FloatField(min_value=0, max_value=200_000)
     spacing_miles = serializers.ChoiceField(choices=[10, 25, 50], default=25)
     vehicle = TruckSerializer(required=False)
+    vehicle_source = serializers.ChoiceField(choices=["example", "custom"], required=False)
+    vehicle_brand = serializers.ChoiceField(choices=BRANDS, default="", allow_blank=True)
 
     def validate(self, attrs):
         if not isfinite(attrs["load_lb"]):
             raise serializers.ValidationError({"load_lb": "Cargo weight must be a finite number."})
         if attrs["mode"] == "live":
+            source = attrs.setdefault("vehicle_source", "custom" if "vehicle" in attrs else "example")
+            if source == "example":
+                # Resolve on the server as well: the four assessment inputs are
+                # sufficient for testing and the client cannot alter this preset.
+                attrs["vehicle"] = example_vehicle(attrs["load_lb"])
             vehicle = attrs.get("vehicle")
             if vehicle is None:
                 raise serializers.ValidationError(

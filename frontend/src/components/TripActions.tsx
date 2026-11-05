@@ -28,10 +28,18 @@ export function TripActions({
           className="start-trip"
           disabled={!exportable}
           onClick={() => {
-            if (data.vehicle) downloadTruckGpx(route.coordinates, data.vehicle, data.load_lb)
+            if (data.vehicle)
+              downloadTruckGpx(
+                route.coordinates,
+                data.vehicle,
+                data.load_lb,
+                data.vehicle_source ?? 'custom',
+                data.vehicle_brand,
+              )
           }}
         >
-          <Download size={16} /> Export GPX
+          <Download size={16} />{' '}
+          {data.vehicle_source === 'example' ? 'Export example GPX' : 'Export GPX'}
         </button>
         <button className="save-trip" onClick={onSave} disabled={busy}>
           <Bookmark size={16} />
@@ -41,7 +49,9 @@ export function TripActions({
       <p>
         {data.mode === 'demo'
           ? 'Weather example only. Truck access is not checked; navigation export is disabled.'
-          : 'Planning track only. Use a truck navigator with the same vehicle profile; GPX does not enforce restrictions. Google Maps does not support this truck profile.'}
+          : data.vehicle_source === 'example'
+            ? 'Example truck for testing. Adjust the dimensions and axle weight for your vehicle before driving.'
+            : 'Planning track only. Use a truck navigator with the same vehicle profile; GPX does not enforce restrictions. Google Maps does not support this truck profile.'}
       </p>
     </section>
   )
@@ -83,7 +93,9 @@ export function SavedTripsDialog({
               </p>
               <p>
                 {trip.profile === 'truck'
-                  ? 'Truck planning route'
+                  ? trip.vehicleSource === 'example'
+                    ? 'Example truck route · adjust before driving'
+                    : 'Truck planning route'
                   : trip.profile === 'weather_demo'
                     ? 'Weather example · not for navigation'
                     : 'Legacy car route · compare again for a truck'}
@@ -98,9 +110,18 @@ export function SavedTripsDialog({
                 trip.eligible === true && (
                   <button
                     className="text-button"
-                    onClick={() => downloadTruckGpx(trip.coordinates!, trip.vehicle!, trip.load)}
+                    onClick={() =>
+                      downloadTruckGpx(
+                        trip.coordinates!,
+                        trip.vehicle!,
+                        trip.load,
+                        trip.vehicleSource ?? 'custom',
+                        trip.vehicleBrand,
+                      )
+                    }
                   >
-                    Export GPX <Download size={13} />
+                    {trip.vehicleSource === 'example' ? 'Export example GPX' : 'Export GPX'}{' '}
+                    <Download size={13} />
                   </button>
                 )}
               <details>

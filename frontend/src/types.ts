@@ -83,6 +83,8 @@ export type Analysis = {
   load_lb: number
   spacing_miles: number
   vehicle: Truck | null
+  vehicle_source?: 'example' | 'custom' | null
+  vehicle_brand?: string
   gross_weight_lb: number | null
   routing_profile: 'truck' | 'weather_demo'
   routes: Route[]
@@ -132,6 +134,8 @@ export type Trip = {
   load_lb: number
   spacing_miles: number
   vehicle?: Truck
+  vehicle_source?: 'example' | 'custom'
+  vehicle_brand?: string
 }
 export type Layer = 'risk' | 'wind' | 'rain' | 'snow'
 export type MapView = 'arrival' | 'forecast'

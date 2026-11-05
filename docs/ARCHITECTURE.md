@@ -55,7 +55,7 @@ El mismo servicio entrega el frontend y la API. En desarrollo se puede usar Vite
 6. Open-Meteo devuelve series horarias; sus unidades se validan. La caché reduce solicitudes repetidas. Los errores dejan datos desconocidos.
 7. La lógica pura clasifica cada punto, aplica carga, agrega exposición por distancia y compara rutas elegibles.
 8. La respuesta incluye resultados del viaje y las 49 horas del corredor. Mover el control temporal sólo actualiza fuentes del mapa en memoria.
-9. El resultado se guarda en una caché acotada, con UUID aleatorio. Cambiar carga real invalida las carreteras y borra el peso por eje: el usuario debe volver a indicarlo y comparar. `/api/reassess/` rechaza cambios reales de carga con 409; solo el ejemplo meteorológico puede reevaluarse sobre carreteras fijas.
+9. El resultado se guarda con UUID en caché acotada. Cambiar carga real invalida las carreteras. En perfil de ejemplo se actualiza la suposición por eje; en Custom se borra ese dato y debe indicarse otra vez. `/api/reassess/` rechaza cambios reales de carga con 409; solo el ejemplo meteorológico puede reevaluarse sobre carreteras fijas.
 
 La carretera coloreada y las millas por riesgo comparten la función `interval_risk`. La geometría de cada tramo conserva los vértices de la API entre los puntos de consulta. Así se evita una discrepancia entre lo que el mapa dibuja y lo que la recomendación calcula.
 
@@ -73,7 +73,9 @@ Durante un análisis nuevo se retiran del mapa las rutas anteriores y se muestra
 | Un repositorio y un servicio | Facilita instalar, revisar y ejecutar. Un mismo origen evita configuración CORS innecesaria. | Frontend y API se publican juntos. |
 | Reglas puras fuera de las vistas | Permite probar límites, carga, empates y datos ausentes sin red ni navegador. | Se necesita una capa pequeña de orquestación. |
 | MapLibre + OpenFreeMap | Mapa con WebGL, capas y perspectiva; no requiere clave para el mapa base. | Depende de WebGL y de un servicio público sin SLA. |
-| TomTom obligatorio en modo real | Considera restricciones de camión con dimensiones, peso total y peso por eje explícitos. | Requiere clave; depende de la cobertura de restricciones del proveedor. Solo carga no peligrosa. |
+| TomTom obligatorio en modo real | Considera dimensiones, peso total y peso por eje del perfil usado. | Requiere clave; depende de cobertura. Solo carga no peligrosa. El ejemplo permite probar; debe ajustarse al vehículo real. |
+| Perfil de ejemplo preseleccionado | Mantiene las cuatro entradas principales del ejercicio sin exigir seis campos nuevos. | Medidas y reparto por eje son suposiciones visibles, no datos de fabricante. Custom conserva validaciones y requiere peso por eje actualizado. |
+| Marca opcional como etiqueta | Permite identificar el camión sin atribuir medidas a una marca completa. | No modifica restricciones ni consulta un catálogo de modelos inexistente. |
 | Sin respaldo de automóvil | Un error o falta de clave no puede producir una ruta presentada como apta para camión. | Queda disponible el ejemplo meteorológico, identificado como no navegable. |
 | Alternativas reales | Se solicitan hasta dos alternativas, además de la principal. | Si devuelve menos, se muestra la cantidad real; nunca se duplican rutas. |
 | Open-Meteo | Series horarias, múltiples coordenadas y horizonte suficiente sin clave para prototipado. | Uso no comercial del servicio gratuito, cuotas y ausencia de SLA. |

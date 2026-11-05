@@ -3,7 +3,7 @@ import { ArrowDownUp, ArrowRight, ChevronDown, X } from 'lucide-react'
 import type { Language } from '../i18n'
 import type { Location } from '../types'
 import LocationField from './LocationField'
-import { TRUCK_FIELDS, type TruckInputs } from '../truck'
+import { TRUCK_BRANDS, TRUCK_FIELDS, type TruckInputs } from '../truck'
 type Props = {
   lang: Language
   origin: Location | null
@@ -17,6 +17,10 @@ type Props = {
   loadValid: boolean
   retrySeconds: number
   truck: TruckInputs
+  truckSource: 'example' | 'custom'
+  truckBrand: string
+  onTruckSource: (value: 'example' | 'custom') => void
+  onTruckBrand: (value: string) => void
   truckValid: boolean
   truckAvailable: boolean | null
   onTruck: (value: TruckInputs) => void
@@ -44,6 +48,10 @@ export default function TripForm({
   loadValid,
   retrySeconds,
   truck,
+  truckSource,
+  truckBrand,
+  onTruckSource,
+  onTruckBrand,
   truckValid,
   truckAvailable,
   onTruck,
@@ -162,14 +170,50 @@ export default function TripForm({
         />
         <details className="trip-options truck-options">
           <summary>
-            Truck profile{' '}
+            Truck settings{' '}
             <span>
-              {truckValid ? 'Ready' : 'Required'} <ChevronDown size={14} />
+              {truckSource === 'example'
+                ? 'Example · 5 axles'
+                : truckValid
+                  ? 'Custom'
+                  : 'Check details'}{' '}
+              <ChevronDown size={14} />
             </span>
           </summary>
+          <label className="truck-select">
+            Truck type
+            <select
+              aria-label="Truck type"
+              value={truckSource}
+              disabled={loading}
+              onChange={(event) => onTruckSource(event.target.value as 'example' | 'custom')}
+            >
+              <option value="example">Example tractor-trailer · 5 axles</option>
+              <option value="custom">Custom truck</option>
+            </select>
+          </label>
+          <label className="truck-select">
+            Brand (optional)
+            <select
+              aria-label="Brand (optional)"
+              value={truckBrand}
+              disabled={loading}
+              onChange={(event) => onTruckBrand(event.target.value)}
+            >
+              <option value="">Not specified</option>
+              {TRUCK_BRANDS.map((brand) => (
+                <option key={brand} value={brand}>
+                  {brand}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p>Brand is a label; it does not set dimensions. Routing uses axles, not wheel count.</p>
           <p>
-            Use the actual loaded dimensions, including the trailer. Feet use decimals: 13 ft 6 in =
-            13.5 ft.
+            {truckSource === 'example'
+              ? 'Example values for testing, not manufacturer specifications. Editing a measurement switches to Custom.'
+              : 'Use actual loaded measurements, including the trailer.'}{' '}
+            Decimal feet: 13 ft 6 in = 13.5 ft.
           </p>
           <div className="truck-fields">
             {TRUCK_FIELDS.map((field) => (
@@ -195,8 +239,9 @@ export default function TripForm({
               : 'Enter empty weight + cargo'}
           </p>
           <p>
-            Maximum loaded axle weight is the heaviest axle, not gross weight divided by axle count.
-            Enter it again after changing cargo.
+            {truckSource === 'example'
+              ? 'Axle weight is an example estimate that updates with cargo. It is not a measured load.'
+              : 'Enter the actual heaviest loaded axle, not gross weight divided by axle count. Update it after changing cargo.'}
           </p>
           <label className="truck-confirm">
             <input
@@ -205,7 +250,9 @@ export default function TripForm({
               disabled={loading}
               onChange={(event) => onTruck({ ...truck, non_hazardous: event.target.checked })}
             />{' '}
-            Non-hazardous cargo only
+            {truckSource === 'example'
+              ? 'Example assumes non-hazardous cargo'
+              : 'Non-hazardous cargo only'}
           </label>
           {!truckValid && (
             <p>Complete all measurements and check that axle weights match the loaded truck.</p>

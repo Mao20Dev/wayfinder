@@ -41,7 +41,9 @@ def main():
         page.on("pageerror", lambda error: errors.append(str(error)))
         page.on("request", lambda request: calls.append(request.url) if "/api/" in request.url else None)
         page.goto(BASE_URL, wait_until="networkidle", timeout=60000)
-        expect(page.get_by_role("button", name="Compare truck routes", exact=True)).to_be_disabled()
+        expect(page.get_by_role("button", name="Compare truck routes", exact=True)).to_be_enabled()
+        assert not page.locator(".truck-options").get_attribute("open")
+        expect(page.locator(".truck-options summary")).to_contain_text("Example")
         assert not any("/api/analyze/" in call for call in calls)
 
         with page.expect_response(lambda r: "/api/analyze/" in r.url, timeout=30000) as response:
@@ -62,8 +64,10 @@ def main():
 
         page.locator(".truck-options summary").click()
         for label, value in PROFILE.items():
-            page.get_by_role("spinbutton", name=label, exact=True).fill(value)
-        page.get_by_role("checkbox", name="Non-hazardous cargo only", exact=True).check()
+            expect(page.get_by_role("spinbutton", name=label, exact=True)).to_have_value(value)
+        page.get_by_label("Brand (optional)", exact=True).select_option("Volvo")
+        expect(page.get_by_label("Truck type", exact=True)).to_have_value("example")
+        expect(page.get_by_role("spinbutton", name="Height", exact=True)).to_have_value("13.5")
         expect(page.locator(".truck-gross")).to_have_text("Gross weight: 60,000 lb")
         with page.expect_response(lambda r: "/api/analyze/" in r.url, timeout=150000) as response:
             page.get_by_role("button", name="Compare truck routes", exact=True).click()
@@ -71,6 +75,7 @@ def main():
         live = response.value.json()
         assert live["routing_profile"] == "truck" and live["routing_provider"] == "TomTom truck"
         assert live["gross_weight_lb"] == 60000
+        assert live["vehicle_source"] == "example" and live["vehicle_brand"] == "Volvo"
         assert live["vehicle"]["height_ft"] == 13.5
         assert live["recommendation"]["route_id"], "Live forecast must be complete for an exportable route"
         assert all(route["summary"]["complete"] for route in live["routes"])
@@ -80,16 +85,17 @@ def main():
         )
         page.screenshot(path=str(artifacts / "truck-live-desktop.png"))
         with page.expect_download() as download:
-            page.get_by_role("button", name="Export GPX", exact=True).click()
+            page.get_by_role("button", name="Export example GPX", exact=True).click()
         download.value.save_as(artifacts / "truck-planning-track.gpx")
         gpx = (artifacts / "truck-planning-track.gpx").read_text()
         selected = live["recommendation"]["route_id"]
         route = next(route for route in live["routes"] if route["id"] == selected)
         assert gpx.count("<trkpt ") == len(route["coordinates"])
         assert "60000 lb gross" in gpx
+        assert "EXAMPLE TRUCK FOR TESTING" in gpx and "Volvo" in gpx
         page.get_by_role("button", name="Save route", exact=True).click()
         expect(page.locator(".saved-trip")).to_have_count(2)
-        expect(page.locator(".saved-trip").first).to_contain_text("Truck planning route")
+        expect(page.locator(".saved-trip").first).to_contain_text("Example truck route")
         page.get_by_role("button", name="Close saved routes", exact=True).click()
         options = live["departure_window"]["routes"][selected]
         offset = next(
@@ -121,10 +127,16 @@ def main():
         )
         page.set_viewport_size({"width": 1600, "height": 1000})
         page.get_by_role("button", name="Along the route", exact=True).click()
-        # Gross weight changes invalidate roads and require a fresh axle measurement.
+        # Example assumptions update automatically; custom profiles need actual axle loads.
         before = len(calls)
         page.get_by_role("spinbutton", name="Cargo weight", exact=True).fill("45000")
         page.locator(".truck-options summary").click()
+        expect(page.get_by_role("spinbutton", name="Max loaded axle weight", exact=True)).to_have_value(
+            "21817"
+        )
+        expect(page.get_by_role("button", name="Compare truck routes", exact=True)).to_be_enabled()
+        page.get_by_label("Truck type", exact=True).select_option("custom")
+        page.get_by_role("spinbutton", name="Cargo weight", exact=True).fill("40000")
         expect(page.get_by_role("spinbutton", name="Max loaded axle weight", exact=True)).to_have_value("")
         expect(page.locator(".trip-actions")).to_have_count(0)
         expect(page.get_by_role("button", name="Compare truck routes", exact=True)).to_be_disabled()
@@ -136,7 +148,8 @@ def main():
             "live_routes": len(live["routes"]),
             "javascript_errors": errors,
             "checks": [
-                "explicit truck profile",
+                "preselected example without manual setup",
+                "optional brand does not change measurements",
                 "60000 lb gross",
                 "complete real forecast",
                 "weather demo not navigable",

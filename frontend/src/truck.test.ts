@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { EMPTY_TRUCK, parseTruck } from './truck'
+import { EMPTY_TRUCK, exampleTruck, parseTruck } from './truck'
 import { truckGpx } from './maps'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { createElement } from 'react'
@@ -16,6 +16,22 @@ const input = {
   non_hazardous: true,
 }
 describe('Truck routing and navigation boundaries', () => {
+  it('starts with a usable example and updates its stated axle assumption with cargo', () => {
+    expect(parseTruck(exampleTruck(28000), 28000)).toEqual(parseTruck(input, 28000))
+    expect(parseTruck(exampleTruck(45000), 45000)?.max_axle_weight_lb).toBe(21817)
+    const gpx = truckGpx(
+      [
+        [-87, 41],
+        [-83, 42],
+      ],
+      parseTruck(exampleTruck(28000), 28000)!,
+      28000,
+      'example',
+      'Volvo & <label>',
+    )
+    expect(gpx).toContain('EXAMPLE TRUCK FOR TESTING')
+    expect(gpx).toContain('Volvo &amp; &lt;label&gt;')
+  })
   it('requires actual measurements and coherent axle weights', () => {
     expect(parseTruck(EMPTY_TRUCK, 28000)).toBeNull()
     expect(parseTruck({ ...input, non_hazardous: false }, 28000)).toBeNull()
