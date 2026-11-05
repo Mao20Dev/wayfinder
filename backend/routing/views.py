@@ -4,7 +4,7 @@ import threading
 from copy import deepcopy
 from datetime import UTC, datetime
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from django.conf import settings
 from django.core.cache import caches
@@ -47,6 +47,22 @@ class AnalysisThrottle(AnonRateThrottle):
         return super().allow_request(request, view)
 
 
+class DepartureThrottle(AnonRateThrottle):
+    scope = "departure_change"
+    rate = "4/minute"
+
+    def allow_request(self, request, view):
+        try:
+            analysis_id = str(UUID(str(request.data.get("analysis_id", ""))))
+        except (ValueError, AttributeError):
+            return True
+        stored = caches["analyses"].get(analysis_id)
+        # Invalid/expired IDs and weather examples cannot call routing providers.
+        if not stored or stored.get("mode") != "live":
+            return True
+        return super().allow_request(request, view)
+
+
 def exception_handler(exc, context):
     response = drf_exception_handler(exc, context)
     if response is not None:
@@ -72,7 +88,8 @@ def health(request):
 def configuration(request):
     return Response(
         {
-            "routing_provider": "TomTom truck" if os.getenv("TOMTOM_API_KEY") else "OSRM car",
+            "routing_provider": "TomTom truck",
+            "truck_routing_available": bool(os.getenv("TOMTOM_API_KEY", "").strip()),
             "demo_origin": DEMO_ORIGIN,
             "demo_destination": DEMO_DESTINATION,
         }
@@ -129,11 +146,19 @@ def reassess(request):
             },
             status=410,
         )
+    if stored.get("mode") == "live" and stored.get("load_lb") != serializer.validated_data["load_lb"]:
+        return Response(
+            {
+                "error": "Cargo changes require new truck routes. Compare routes again.",
+                "code": "route_recheck_required",
+            },
+            status=409,
+        )
     return Response(public_analysis(reassess_load(deepcopy(stored), serializer.validated_data["load_lb"])))
 
 
 @api_view(["POST"])
-@throttle_classes([ReassessmentThrottle])
+@throttle_classes([DepartureThrottle])
 def departure(request):
     serializer = DepartureSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -146,8 +171,34 @@ def departure(request):
     epoch = stored["_base_departure_epoch"] + values["offset_hours"] * 3600
     if not departure_available(stored, epoch, datetime.now(UTC).timestamp()):
         return Response({"error": "Choose a future departure within the next four days."}, status=400)
-    changed = apply_departure(deepcopy(stored), values["offset_hours"], values["load_lb"])
-    changed = reassess_load(changed, values["load_lb"])
+    if stored.get("mode") == "live":
+        # Truck access and traffic may change with departure. Never certify the
+        # cached geometry for a different time or gross weight.
+        serializer = TripSerializer(
+            data={
+                "mode": "live",
+                "origin": stored["origin"],
+                "destination": stored["destination"],
+                "departure": datetime.fromtimestamp(epoch, UTC).isoformat(),
+                "load_lb": values["load_lb"],
+                "spacing_miles": stored["spacing_miles"],
+                "vehicle": stored.get("vehicle"),
+            }
+        )
+        serializer.is_valid(raise_exception=True)
+        if not ANALYSIS_LOCK.acquire(blocking=False):
+            return Response(
+                {"error": "Two trips are already being analyzed. Please try again shortly."}, status=503
+            )
+        try:
+            changed = analyze_trip(serializer.validated_data)
+        except ProviderError as exc:
+            return Response({"error": str(exc)}, status=502)
+        finally:
+            ANALYSIS_LOCK.release()
+    else:
+        changed = apply_departure(deepcopy(stored), values["offset_hours"], values["load_lb"])
+        changed = reassess_load(changed, values["load_lb"])
     changed["analysis_id"] = str(uuid4())
     caches["analyses"].set(changed["analysis_id"], changed)
     return Response(public_analysis(changed))

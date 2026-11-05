@@ -1,4 +1,14 @@
 export type Location = { name: string; latitude: number; longitude: number; timezone: string }
+export type Truck = {
+  empty_weight_lb: number
+  height_ft: number
+  width_ft: number
+  length_ft: number
+  max_axle_weight_lb: number
+  axles: number
+  non_hazardous: boolean
+}
+export type Configuration = { truck_routing_available: boolean }
 export type Weather = {
   wind_mph: number | null
   rain_in_hr: number | null
@@ -72,6 +82,9 @@ export type Analysis = {
   forecast_reference_epoch: number
   load_lb: number
   spacing_miles: number
+  vehicle: Truck | null
+  gross_weight_lb: number | null
+  routing_profile: 'truck' | 'weather_demo'
   routes: Route[]
   corridor: CorridorCell[]
   routing_provider: string
@@ -118,6 +131,7 @@ export type Trip = {
   departure: string
   load_lb: number
   spacing_miles: number
+  vehicle?: Truck
 }
 export type Layer = 'risk' | 'wind' | 'rain' | 'snow'
 export type MapView = 'arrival' | 'forecast'

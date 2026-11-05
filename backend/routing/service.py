@@ -1,5 +1,4 @@
 import json
-import os
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -7,6 +6,7 @@ from . import providers
 from .departures import compare_departures
 from .geometry import METERS_PER_MILE, checkpoints, corridor_grid, distance, road_segments
 from .risk import classify, recommend, summarize
+from .vehicle import gross_weight_lb
 from .weather import at_time, simulated_at
 
 DEMO_ORIGIN = {
@@ -36,18 +36,20 @@ def analyze_trip(trip):
         routes = fixture["routes"]
         origin, destination = DEMO_ORIGIN, DEMO_DESTINATION
         routing_provider = "OSRM recorded routes"
-        notices.append("Demo: recorded road routes with synthetic weather. No live forecast is used.")
+        notices.append(
+            "Weather demo only: recorded car routes and synthetic weather. Truck road access is not checked. Do not navigate this example."
+        )
     else:
         origin, destination = trip["origin"], trip["destination"]
-        if os.getenv("TOMTOM_API_KEY"):
-            routes = providers.tomtom_routes(origin, destination, trip["departure"])
-            routing_provider = "TomTom truck"
-        else:
-            routes = providers.osrm_routes(origin, destination)
-            routing_provider = "OSRM car"
-            notices.append(
-                "OSRM uses a car profile: truck height, gross weight, access restrictions and driving breaks are not modeled."
-            )
+        if not trip.get("vehicle"):
+            raise providers.ProviderError("Truck dimensions and weights are required for live routing.")
+        routes = providers.tomtom_routes(
+            origin, destination, trip["departure"], trip["vehicle"], trip["load_lb"]
+        )
+        routing_provider = "TomTom truck"
+        notices.append(
+            "Truck dimensions, gross and axle weights were sent to TomTom. Restrictions depend on provider map coverage; signs, permits and driving breaks still require review. Non-hazardous cargo only."
+        )
     if any(route["duration_seconds"] > 48 * 3600 for route in routes):
         raise providers.ProviderError("This prototype supports routes with up to 48 hours of driving time.")
     if len(routes) < 3:
@@ -119,6 +121,9 @@ def analyze_trip(trip):
         "forecast_reference_epoch": reference,
         "load_lb": trip["load_lb"],
         "spacing_miles": trip["spacing_miles"],
+        "vehicle": trip.get("vehicle") if not demo else None,
+        "gross_weight_lb": gross_weight_lb(trip["vehicle"], trip["load_lb"]) if not demo else None,
+        "routing_profile": "weather_demo" if demo else "truck",
         "routes": routes,
         "recommendation": recommend(routes),
         "corridor": grid,
@@ -134,6 +139,10 @@ def analyze_trip(trip):
 
 def reassess_load(analysis, load_lb):
     """Re-use the exact weather and departure, without consuming any provider quota."""
+    if analysis.get("mode") == "live" and analysis.get("load_lb") != load_lb:
+        raise providers.ProviderError(
+            "Cargo changes require a new truck route calculation because gross weight changes."
+        )
     analysis["load_lb"] = load_lb
     for route in analysis["routes"]:
         for cp in route["checkpoints"]:

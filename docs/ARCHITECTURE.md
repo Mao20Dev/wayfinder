@@ -27,7 +27,7 @@ flowchart TB
         ORCHESTRATOR --> CACHE
     end
     subgraph SOURCES["Proveedores externos · únicamente modo real"]
-        ROUTES["OSRM público: automóvil<br/>TomTom opcional: camión"]
+        ROUTES["TomTom obligatorio: camión<br/>Perfil completo del vehículo"]
         WEATHER["Open-Meteo<br/>Pronóstico y búsqueda de ciudades"]
         TILES["OpenFreeMap<br/>Mapa base"]
     end
@@ -36,26 +36,26 @@ flowchart TB
     STATIC --> REACT
     CACHE --> ROUTES
     CACHE --> WEATHER
-    REACT -->|"Cambio de carga · POST /api/reassess/"| API
+    REACT -->|"Cambio de carga real · nuevo POST /api/analyze/"| API
     MAP --> TILES
     API -->|"Rutas, puntos, resultados y 49 horas"| REACT
 ```
 
 La API es nuestra puerta de entrada a la lógica de negocio. Las APIs externas son fuentes de datos. React no guarda claves de TomTom ni decide qué ruta gana. Vite prepara archivos del frontend; no corre como servidor de producción.
 
-El mismo servicio local entrega el frontend y la API. En desarrollo se puede usar Vite en un segundo puerto; su proxy envía `/api` a Django. Los archivos de Render y Docker están preparados, pero **la publicación está pospuesta por instrucción del usuario**.
+El mismo servicio entrega el frontend y la API. En desarrollo se puede usar Vite en un segundo puerto; su proxy envía `/api` a Django. Está publicado en un único servicio Render Free; detalles en `DEPLOYMENT.md`.
 
 ## Recorrido de una solicitud
 
 1. El usuario elige ciudades de resultados de geocodificación, una salida con zona horaria explícita, carga y separación entre puntos.
 2. DRF valida tipos, rangos, coordenadas finitas, zona IANA y ventana de salida. Los límites protegen el presupuesto gratuito.
-3. El adaptador de rutas obtiene geometría y tiempo/distancia acumulados. OSRM usa anotaciones por arista. TomTom usa `progress`, interpolando según su contrato.
+3. TomTom recibe modo camión comercial, dimensiones cargadas, peso total, peso del eje más pesado y número de ejes. Devuelve geometría y tiempo/distancia acumulados mediante `progress`. Sin clave no se calculan rutas reales; no hay respaldo de automóvil.
 4. El módulo geométrico ubica puntos sobre la ruta cada 10, 25 o 50 millas, incluidos ambos extremos, y calcula ETA acumulada.
 5. Se construye una malla del corredor independiente de los puntos de evaluación de rutas. Se deduplican coordenadas para consultar el clima.
 6. Open-Meteo devuelve series horarias; sus unidades se validan. La caché reduce solicitudes repetidas. Los errores dejan datos desconocidos.
 7. La lógica pura clasifica cada punto, aplica carga, agrega exposición por distancia y compara rutas elegibles.
 8. La respuesta incluye resultados del viaje y las 49 horas del corredor. Mover el control temporal sólo actualiza fuentes del mapa en memoria.
-9. El resultado se guarda en una caché separada y acotada, con un UUID aleatorio. Al cambiar carga, `/api/reassess/` recupera una copia y aplica nuevamente las reglas; no llama a proveedores. El original permanece inmutable para evitar que usuarios o solicitudes concurrentes modifiquen el pronóstico base.
+9. El resultado se guarda en una caché acotada, con UUID aleatorio. Cambiar carga real invalida las carreteras y borra el peso por eje: el usuario debe volver a indicarlo y comparar. `/api/reassess/` rechaza cambios reales de carga con 409; solo el ejemplo meteorológico puede reevaluarse sobre carreteras fijas.
 
 La carretera coloreada y las millas por riesgo comparten la función `interval_risk`. La geometría de cada tramo conserva los vértices de la API entre los puntos de consulta. Así se evita una discrepancia entre lo que el mapa dibuja y lo que la recomendación calcula.
 
@@ -73,9 +73,9 @@ Durante un análisis nuevo se retiran del mapa las rutas anteriores y se muestra
 | Un repositorio y un servicio | Facilita instalar, revisar y ejecutar. Un mismo origen evita configuración CORS innecesaria. | Frontend y API se publican juntos. |
 | Reglas puras fuera de las vistas | Permite probar límites, carga, empates y datos ausentes sin red ni navegador. | Se necesita una capa pequeña de orquestación. |
 | MapLibre + OpenFreeMap | Mapa con WebGL, capas y perspectiva; no requiere clave para el mapa base. | Depende de WebGL y de un servicio público sin SLA. |
-| OSRM por defecto | Rutas reales sin clave: permite trabajar localmente inmediatamente. | Perfil de automóvil, sin restricciones legales o físicas de camión; visible en UI y README. |
-| TomTom como adaptador opcional | Su v1 documenta camiones, salida y tiempos acumulados. | No se pudo comprobar contra una cuenta real sin clave; pruebas de contrato simuladas. |
-| Alternativas y puntos de comparación | Si OSRM devuelve pocas alternativas, solicita rutas reales por puntos intermedios explícitos. | Pueden ser desvíos artificialmente largos. Se etiquetan y se comparan por clima; nunca se duplican rutas para fingir tres. |
+| TomTom obligatorio en modo real | Considera restricciones de camión con dimensiones, peso total y peso por eje explícitos. | Requiere clave; depende de la cobertura de restricciones del proveedor. Solo carga no peligrosa. |
+| Sin respaldo de automóvil | Un error o falta de clave no puede producir una ruta presentada como apta para camión. | Queda disponible el ejemplo meteorológico, identificado como no navegable. |
+| Alternativas reales | Se solicitan hasta dos alternativas, además de la principal. | Si devuelve menos, se muestra la cantidad real; nunca se duplican rutas. |
 | Open-Meteo | Series horarias, múltiples coordenadas y horizonte suficiente sin clave para prototipado. | Uso no comercial del servicio gratuito, cuotas y ausencia de SLA. |
 | Mayor riesgo de los extremos | Aproximación conservadora, transparente y fácil de comprobar para cada intervalo. | No es una integral continua ni detecta todo evento entre puntos. |
 | Promedio ponderado por distancia | Un tramo de 2 millas no pesa lo mismo que uno de 50. | Los números 0–4 asignados a categorías son una decisión de diseño, no una probabilidad de accidente. |
@@ -99,12 +99,12 @@ Durante un análisis nuevo se retiran del mapa las rutas anteriores y se muestra
 
 El campo meteorológico se genera como una imagen geográfica en el navegador desde la malla recibida: interpola dentro de celdas conocidas y mantiene visibles riesgo bajo, datos desconocidos y límites de cobertura. Sus escalas son fijas; no usa la densidad de puntos como indicador de riesgo. Los márgenes de cámara reservan espacio adicional alrededor de A/B.
 
-`departures.py` reutiliza las series meteorológicas originales para 25 salidas horarias por ruta. Estas series se guardan sólo en la caché privada; `public_analysis` elimina las claves internas antes de responder. `/api/departure/` valida un desplazamiento entero de 0–24, usa una copia del análisis y devuelve un UUID nuevo, conservando la instantánea anterior. La caché sigue acotada a 24 análisis y 15 minutos. No se agregan llamadas externas ni una base de datos.
+`departures.py` compara 25 salidas sobre la geometría y duración actuales usando pronósticos privados en caché. Esta comparación es meteorológica y no certifica acceso futuro. Aplicar una salida real mediante `/api/departure/` consulta nuevamente TomTom y el clima necesario: el acceso horario y el tráfico pueden cambiar. Solo el ejemplo aplica cambios sin proveedores. La caché permanece acotada a 24 análisis y 15 minutos; cada resultado recibe un UUID nuevo.
 
-Los enlaces de Google Maps se construyen con la API pública de URLs, con coordenadas y hasta tres puntos guía en orden. No transmiten el pronóstico ni la fecha de salida y no preservan de forma exacta la polilínea de OSRM/TomTom. El guardado persiste metadatos y puntos guía en `localStorage`, con diez registros como máximo, validación al leer y manejo de fallos de almacenamiento. Nunca se afirma guardar en una cuenta de Google.
+Google Maps solo se ofrece como vista previa de automóvil dentro de un desplegable: no recibe las restricciones del camión ni conserva su ruta. Se eliminó Start trip. Las rutas reales elegibles permiten exportar la geometría completa como GPX, con el perfil y una advertencia: el archivo no impone restricciones y requiere un navegador de camiones configurado con los mismos datos. El guardado local conserva perfil y geometría; las rutas antiguas de automóvil se identifican como legacy. Diez registros como máximo, validados al leer, sin cuenta Google.
 
 ## Qué no afirmar en una defensa
 
-No afirmar que el riesgo es una predicción científica de accidentes, que OSRM garantiza acceso legal de un camión, que la capa difuminada tiene categorías exactas, que el modo demo muestra clima real, que el perfil opcional de TomTom fue probado con credenciales reales, ni que los tiempos incluyen descansos reglamentarios.
+No afirmar que el riesgo predice accidentes, que todas las restricciones están cubiertas, que el GPX impone el perfil del camión, que el ejemplo es una ruta navegable o que los tiempos incluyen descansos reglamentarios. TomTom se comprobó con la clave Evaluation y un perfil de prueba; no equivale a certificar cada puente o permiso especial.
 
 En la preparación de publicación se deja HSTS preload desactivado intencionalmente: es una aplicación nueva sin dominio definitivo y no se solicita una inclusión persistente en la lista de navegadores. `check --deploy` puede mostrar W021 por esa decisión. No implica una excepción al uso de HTTPS en Render.

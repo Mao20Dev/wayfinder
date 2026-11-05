@@ -142,7 +142,10 @@ export default function DetailsDialog({
             <h3>{'Data and limits'}</h3>
             <p>{t.demoDescription}</p>
             <p>
-              {t.carProfile} {t.noStops}
+              {data?.routing_profile === 'truck'
+                ? 'Truck dimensions, gross weight and axle weights are applied by TomTom. Restriction coverage varies; road signs and local rules still apply. Non-hazardous cargo only.'
+                : 'The weather example uses recorded car routes and is not valid for truck navigation.'}{' '}
+              {t.noStops}
             </p>
             <p>
               {

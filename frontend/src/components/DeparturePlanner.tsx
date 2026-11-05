@@ -79,8 +79,10 @@ export default function DeparturePlanner({
         <details className="departure-options">
           <summary>Compare hourly departures</summary>
           <p>
-            Same roads and driving times. Weather risk is rechecked at each arrival. Traffic and
-            breaks are not predicted.
+            Weather outlook on the current roads, with fixed driving times.{' '}
+            {data.mode === 'live'
+              ? 'Applying a time requests new truck routes and checks access again. Breaks are not included.'
+              : 'Demo only; truck access is not checked.'}
           </p>
           <div className="departure-table-wrap">
             <table className="departure-table">

@@ -27,6 +27,15 @@ def payload(mode="demo"):
         "departure": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
         "load_lb": 28000,
         "spacing_miles": 25,
+        "vehicle": {
+            "empty_weight_lb": 32000,
+            "height_ft": 13.5,
+            "width_ft": 8.5,
+            "length_ft": 70,
+            "max_axle_weight_lb": 17000,
+            "axles": 5,
+            "non_hazardous": True,
+        },
     }
 
 
@@ -66,7 +75,7 @@ def test_missing_live_forecasts_exclude_recommendation(monkeypatch):
     trip = TripSerializer(data=payload("live"))
     assert trip.is_valid(), trip.errors
     with (
-        patch.object(providers, "osrm_routes", return_value=copy.deepcopy(recorded_routes())),
+        patch.object(providers, "tomtom_routes", return_value=copy.deepcopy(recorded_routes())),
         patch.object(providers, "forecast", return_value={}),
     ):
         result = analyze_trip(trip.validated_data)
@@ -106,7 +115,7 @@ def test_invalid_location_and_expired_departure():
 def test_provider_failures_do_not_expose_secrets(monkeypatch):
     monkeypatch.delenv("TOMTOM_API_KEY", raising=False)
     with patch.object(
-        providers, "osrm_routes", side_effect=providers.ProviderError("Routing is temporarily unavailable.")
+        providers, "tomtom_routes", side_effect=providers.ProviderError("Routing is temporarily unavailable.")
     ):
         response = APIClient().post("/api/analyze/", payload("live"), format="json")
     assert response.status_code == 502
@@ -118,7 +127,7 @@ def test_routes_do_not_fabricate_three_options(monkeypatch):
     trip = TripSerializer(data=payload("live"))
     trip.is_valid(raise_exception=True)
     with (
-        patch.object(providers, "osrm_routes", return_value=copy.deepcopy(recorded_routes()[:1])),
+        patch.object(providers, "tomtom_routes", return_value=copy.deepcopy(recorded_routes()[:1])),
         patch.object(providers, "forecast", return_value={}),
     ):
         result = analyze_trip(trip.validated_data)

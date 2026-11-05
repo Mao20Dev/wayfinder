@@ -33,12 +33,12 @@ For frontend development, run Django on port 8000 and `npm run dev --prefix fron
 - **Along the route** colors the selected road using weather at each point's estimated arrival. Labels show weather and ETA. Selecting a point opens its forecast and applied rule directly over the map; **Weather details** opens the complete table.
 - **48-hour forecast** exposes the corridor heatmap, Risk/Wind/Rain/Snow layers and a 0–48-hour slider. The whole area shows a common forecast hour. Scrubbing does not change departure or recommendation and makes no API requests. Roads are neutral in this view.
 - The forecast field uses a geographically registered raster, interpolating only within sampled cells. Low risk stays visible in green, missing values are gray, and unsampled territory remains transparent. Layer scales stay fixed across time. Area values are estimates; selecting a cell shows the actual hourly sample.
-- **Best time to leave** compares 25 hourly departures from the original chosen departure through +24 hours for the selected route. It uses the same Severe miles → High miles → distance-weighted average order, excludes No Travel and incomplete options, and reports ties. **Use this departure** updates ETA, checkpoint weather, road colors and route rankings from cached forecasts, without provider calls. Roads and driving durations stay fixed; future traffic and breaks are not predicted.
-- **Start trip** opens a Google Maps directions URL with the selected route's endpoints and up to three guide points. Maps recalculates its own directions; its exact road geometry is not guaranteed and the planned departure time must be set there. No paid Maps API or account integration is used. Demo results offer a preview, and blocked/incomplete routes cannot start.
-- **Save route** stores up to ten trip snapshots on this device, not in a Google account. **Saved** opens the list, including Maps preview links and removal. Forecasts are not saved as current weather.
+- **Best time to leave** compares 25 hourly departures using the assessment weather priorities on the current geometry and fixed driving times. This outlook does not certify future truck access. Applying a live departure requests new truck routes because time-dependent access and traffic can change. The weather example can apply a departure using cached synthetic data.
+- **Export GPX** downloads the complete planning track and truck profile for an eligible live route. GPX does not enforce access restrictions: configure the same profile in a truck navigator and review its directions. Export is disabled for the weather example and ineligible routes. Google Maps is a **Car directions preview**, never a truck navigation handoff.
+- **Save route** stores up to ten trip snapshots on this device, including the truck profile and complete track for live routes. Legacy car routes are labeled and must be compared again for a truck. Forecasts are not saved as current weather.
 - **Risk rules** opens the full threshold and cargo-rule tables. Provider information and assumptions sit behind **Trip & data sources**; the car-profile limitation remains visible.
 - **Try a Chicago → Detroit example** is optional and explicitly uses synthetic weather over three recorded OSRM road routes. It does not call forecast providers. **Use live weather** compares the trip against Open-Meteo instead.
-- Changing only cargo automatically reassesses the stored forecast through Django without new routing/weather calls. Saved analyses expire after 15 minutes and the cache holds at most 24 trips; an expired trip prompts a fresh comparison.
+- A live cargo change invalidates the route and clears the loaded axle input. Enter the new actual heaviest axle weight and compare again: gross weight changes can affect permitted roads. Only the weather example reuses its roads for cargo-only reassessment. Saved analyses expire after 15 minutes and the cache holds at most 24 trips.
 
 Live analysis is limited separately to four requests/minute; demo exploration and city searches do not consume that counter. The UI preserves current results and shows a countdown when live analysis is temporarily limited.
 
@@ -53,11 +53,11 @@ Live analysis is limited separately to four requests/minute; demo exploration an
 | Severe miles, High miles, weighted average, duration ranking | Route cards and the recommendation's deciding difference. |
 | Corridor heatmap and 0–48-hour exploration | 48-hour forecast, with Risk/Wind/Rain/Snow layers and slider. |
 
-**Provider distinction:** without `TOMTOM_API_KEY`, routes use the public OSRM **car profile**. Truck dimensions, legal truck access, gross weight and driving breaks are not modeled. Cargo is used only in the supplied weather-risk rules. When natural alternatives are scarce, up to two API requests via explicit comparison waypoints may supply additional genuine routes. These detours are labeled. If fewer than three distinct routes are available, the app displays the actual count and does not duplicate routes.
+**Truck routing:** live trips require TomTom and explicit height, width, total length, empty truck/trailer weight, heaviest loaded axle weight, axle count and confirmation of non-hazardous cargo. Gross weight is empty combination weight plus cargo; cargo alone still drives the assessment weather rules. Units are rounded upward during conversion to avoid understating the vehicle. There is no car-profile fallback. Restriction coverage depends on TomTom map data; posted signs, permits, temporary restrictions and driving breaks still require review. The recorded OSRM weather example is not valid for truck navigation. Fewer than three provider routes are shown honestly, without duplicates.
 
-## Optional TomTom truck routing
+## Required TomTom truck routing
 
-Add `TOMTOM_API_KEY=...` to the ignored `.env`, or the host's secret environment, then restart Django. The adapter uses TomTom Routing v1 with `travelMode=truck`, `maxAlternatives=2`, `departAt` and cumulative distance/travel-time progress. Cargo weight is not incorrectly passed as gross vehicle weight. The adapter has mocked contract tests; end-to-end TomTom verification requires an actual key.
+Add `TOMTOM_API_KEY=...` to the ignored `.env`, or the host's secret environment, then restart Django. The adapter uses TomTom Routing v1 with commercial truck mode, the full vehicle profile, `maxAlternatives=2`, `departAt` and cumulative timing progress. Without a key, only the labeled weather example is available. The connected TomTom key uses Evaluation, without upgrading to a paid plan. See [TomTom routing parameters](https://docs.tomtom.com/routing-api/documentation/tomtom-maps/v1/calculate-route).
 
 ## Publish on Render Free
 
@@ -66,7 +66,7 @@ The included `render.yaml` defines **one Python web service**. It installs Pytho
 1. Publish this directory as a separate GitHub repository. Do not include the parent job-search folder.
 2. Connect the repository to a Render Blueprint, using `render.yaml` and the Free plan.
 3. Let Render generate `DJANGO_SECRET_KEY`. `DJANGO_DEBUG=false` is already declared. The Render hostname is automatically added to allowed hosts. A custom hostname requires adding it to `DJANGO_ALLOWED_HOSTS`.
-4. Keep `TOMTOM_API_KEY` optional and secret. Do not enable a paid plan or attach a payment method for this assessment.
+4. Set `TOMTOM_API_KEY` as a server secret for live truck routes. Do not enable a paid plan or attach a payment method for this assessment.
 5. Verify `/api/health/`, the demo and a live trip from the public address.
 
 Render Free can sleep after 15 minutes without traffic. The next request may take about a minute to wake it. Its filesystem and in-memory caches are ephemeral. Do not promise permanent availability or production-scale throughput. Configure only one worker/replica: the public-provider pacing and caches are process-local. Scaling requires a shared rate limiter/cache.
@@ -89,7 +89,7 @@ Tests cover exact weather boundaries, decimal winds, strict cargo thresholds, un
 
 `scripts/check_opera.py` runs additional checks using installed Opera with an isolated temporary profile. It needs Python Playwright and Pillow and does not use global input, existing tabs or the clipboard. It checks a fullscreen canvas without page scrolling, camera focus immediately after city selection, loading feedback while an analysis request is held, actual colored road pixels, weather labels, English despite an old Spanish preference, panel controls, mobile layout, a real live trip, cargo reassessment without a new forecast and countdown feedback. The held request subsequently continues to the real backend; no road or weather results are fabricated for that check. The final 429 feedback check uses an explicitly mocked response. Screenshots and the report are written to ignored `artifacts/`.
 
-`scripts/check_trip_planning_opera.py` verifies the continuous forecast field, a cached departure change, persistence after reload, a Maps popup intercepted before any data reach Google, and a live Minneapolis–Detroit trip on desktop/mobile. The actual Google Maps account or navigation interface is not controlled by this app. See [Maps URLs documentation](https://developers.google.com/maps/documentation/urls/get-started).
+`python scripts/check_truck_opera.py` is the current browser smoke test. It verifies explicit truck inputs, real TomTom alternatives, complete arrival forecasts, the complete GPX track, saved profiles, the 48-hour slider without requests, mobile layout and invalidation after cargo changes. It does not start Google Maps navigation. `check_opera.py` and `check_trip_planning_opera.py` record the historical car-profile UI checks; use the current script for this release.
 
 ## Repository map
 

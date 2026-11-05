@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 import { ApiError, localDateTime, request } from './api'
 import { copy, fmt, riskNames, routeNumber, timeAt, type Language } from './i18n'
-import type { Analysis, Checkpoint, Layer, Location, MapView, Trip } from './types'
+import type { Analysis, Checkpoint, Configuration, Layer, Location, MapView, Trip } from './types'
 import { RISK_COLORS } from './types'
 import TripForm from './components/TripForm'
 import RouteComparison, { RecommendationBanner } from './components/RouteComparison'
@@ -26,6 +26,7 @@ import { FORECAST_SCALES } from './forecastField'
 import DeparturePlanner from './components/DeparturePlanner'
 import { TripActions, SavedTripsDialog } from './components/TripActions'
 import { readSavedTrips, saveTrip, writeSavedTrips } from './maps'
+import { EMPTY_TRUCK, parseTruck } from './truck'
 const RouteMap = lazy(() => import('./components/RouteMap'))
 const CHICAGO: Location = {
   name: 'Chicago, Illinois, United States',
@@ -45,6 +46,8 @@ export default function App() {
   const [destination, setDestination] = useState<Location | null>(DETROIT)
   const [departure, setDeparture] = useState(localDateTime)
   const [load, setLoad] = useState('28000')
+  const [truck, setTruck] = useState(EMPTY_TRUCK)
+  const [truckAvailable, setTruckAvailable] = useState<boolean | null>(null)
   const [spacing, setSpacing] = useState(25)
   const [mode, setMode] = useState<'live' | 'demo'>('live')
   const [data, setData] = useState<Analysis | null>(null)
@@ -73,8 +76,17 @@ export default function App() {
   const latest = useRef({ lang, selected, point })
   latest.current = { lang, selected, point }
   const t = copy[lang]
-  const baseSignature = JSON.stringify([mode, origin, destination, departure, spacing])
   const loadNumber = Number(load)
+  const vehicle = parseTruck(truck, loadNumber)
+  const truckSignature = mode === 'live' ? JSON.stringify([truck, loadNumber]) : null
+  const baseSignature = JSON.stringify([
+    mode,
+    origin,
+    destination,
+    departure,
+    spacing,
+    truckSignature,
+  ])
   const loadValid =
     load.trim() !== '' && Number.isFinite(loadNumber) && loadNumber >= 0 && loadNumber <= 200000
   const dirty = !!data && baseSignature !== lastBase
@@ -92,6 +104,16 @@ export default function App() {
     document.documentElement.lang = 'en'
     document.title = 'Wayfinder - Weather-aware routing'
   }, [])
+  useEffect(() => {
+    const controller = new AbortController()
+    request<Configuration>('/api/config/', { signal: controller.signal })
+      .then((config) => setTruckAvailable(config.truck_routing_available))
+      .catch(() => {
+        if (!controller.signal.aborted)
+          setError('Could not check truck routing. Reload to try again.')
+      })
+    return () => controller.abort()
+  }, [])
   function showError(error: unknown) {
     const current = copy[latest.current.lang]
     if (error instanceof ApiError && error.retryAfter > 0) {
@@ -101,12 +123,13 @@ export default function App() {
       throttledMessage.current = message
       setError(message)
     } else if (error instanceof ApiError && error.status === 410) setError(current.errorExpired)
-    else if (error instanceof ApiError && error.status === 400) setError(error.message)
+    else if (error instanceof ApiError && [400, 409, 502, 503].includes(error.status))
+      setError(error.message)
     else setError(current.errorNetwork)
   }
   async function analyze(nextMode = mode) {
     if (
-      (nextMode !== 'demo' && (!origin || !destination)) ||
+      (nextMode !== 'demo' && (!origin || !destination || !vehicle || !truckAvailable)) ||
       !loadValid ||
       !Number.isFinite(new Date(departure).getTime())
     )
@@ -129,7 +152,14 @@ export default function App() {
       setDestination(DETROIT)
     }
     setMode(nextMode)
-    const signature = JSON.stringify([nextMode, tripOrigin, tripDestination, departure, spacing])
+    const signature = JSON.stringify([
+      nextMode,
+      tripOrigin,
+      tripDestination,
+      departure,
+      spacing,
+      nextMode === 'live' ? JSON.stringify([truck, loadNumber]) : null,
+    ])
     const trip: Trip = {
       mode: nextMode,
       origin: tripOrigin,
@@ -137,6 +167,7 @@ export default function App() {
       departure: new Date(departure).toISOString(),
       load_lb: loadNumber,
       spacing_miles: spacing,
+      ...(nextMode === 'live' && vehicle ? { vehicle } : {}),
     }
     try {
       const result = await request<Analysis>('/api/analyze/', {
@@ -161,6 +192,7 @@ export default function App() {
   useEffect(() => {
     if (
       !data ||
+      data.mode === 'live' ||
       loading ||
       departureUpdating ||
       lastBase !== baseSignature ||
@@ -273,7 +305,10 @@ export default function App() {
       const nextDeparture = localDateTime(new Date(result.departure_epoch * 1000))
       setDeparture(nextDeparture)
       setData(result)
-      setLastBase(JSON.stringify([mode, origin, destination, nextDeparture, spacing]))
+      setLastBase(
+        JSON.stringify([mode, origin, destination, nextDeparture, spacing, truckSignature]),
+      )
+      setSelected(result.recommendation.route_id ?? result.routes[0].id)
       setPoint(null)
       followRecommendation.current = false
     } catch (error) {
@@ -409,10 +444,18 @@ export default function App() {
             reassessing={reassessing}
             loadValid={loadValid}
             retrySeconds={retrySeconds}
+            truck={truck}
+            truckValid={!!vehicle}
+            truckAvailable={truckAvailable}
+            onTruck={setTruck}
             onOrigin={(value) => editLocation(setOrigin, value)}
             onDestination={(value) => editLocation(setDestination, value)}
             onDeparture={setDeparture}
-            onLoad={setLoad}
+            onLoad={(value) => {
+              setLoad(value)
+              if (mode === 'live' && value !== load)
+                setTruck((current) => ({ ...current, max_axle_weight_lb: '' }))
+            }}
             onSpacing={setSpacing}
             onSubmit={() => void analyze()}
             onExample={() => void analyze('demo')}
@@ -572,6 +615,15 @@ export default function App() {
                       <p>
                         {visibleData.routing_provider} · {visibleData.weather_provider}. {t.noStops}
                       </p>
+                      {visibleData.vehicle && (
+                        <p>
+                          Truck: {visibleData.vehicle.height_ft} ft high ·{' '}
+                          {visibleData.vehicle.width_ft} ft wide · {visibleData.vehicle.length_ft}{' '}
+                          ft long · {fmt(visibleData.gross_weight_lb, lang)} lb gross ·{' '}
+                          {visibleData.vehicle.axles} axles ·{' '}
+                          {fmt(visibleData.vehicle.max_axle_weight_lb, lang)} lb heaviest axle.
+                        </p>
+                      )}
                       {visibleData.notices.map((notice) => (
                         <p key={notice}>{notice}</p>
                       ))}
@@ -718,9 +770,11 @@ export default function App() {
           Weather by Open-Meteo
         </a>
         <span>
-          {data?.routing_provider.toLowerCase().includes('tomtom')
-            ? 'Driving time excludes breaks.'
-            : 'Car-profile routes. Truck access not verified.'}
+          {visibleData?.routing_profile === 'truck'
+            ? 'Truck profile applied · check signs and local restrictions.'
+            : visibleData?.mode === 'demo'
+              ? 'Weather demo only · not a truck navigation route.'
+              : 'Truck dimensions and weights required.'}
         </span>
       </div>
       <SavedTripsDialog

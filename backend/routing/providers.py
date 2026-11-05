@@ -12,6 +12,7 @@ import httpx
 from django.core.cache import cache
 
 from .geometry import cumulative, distance
+from .vehicle import truck_parameters
 
 logger = logging.getLogger(__name__)
 CLIENT = httpx.Client(
@@ -173,7 +174,11 @@ def osrm_routes(origin, destination):
     return [normalize_osrm(raw, f"route-{i + 1}", via) for i, (raw, via) in enumerate(candidates)]
 
 
-def tomtom_routes(origin, destination, departure):
+def tomtom_routes(origin, destination, departure, vehicle, cargo_lb):
+    if not os.getenv("TOMTOM_API_KEY", "").strip():
+        raise ProviderError(
+            "Truck routing is not connected. Explore the weather example while the provider is configured."
+        )
     points = (
         f"{origin['latitude']},{origin['longitude']}:{destination['latitude']},{destination['longitude']}"
     )
@@ -185,12 +190,22 @@ def tomtom_routes(origin, destination, departure):
             "maxAlternatives": 2,
             "departAt": departure.isoformat(),
             "extendedRouteRepresentation": ["distance", "travelTime"],
+            **truck_parameters(vehicle, cargo_lb),
         },
         provider="TomTom routing",
     )
     result = []
     for i, raw in enumerate(data.get("routes", [])[:3]):
-        coords = [[p["longitude"], p["latitude"]] for leg in raw["legs"] for p in leg["points"]]
+        # TomTom repeats a leg boundary in multi-leg responses. Progress indices
+        # refer to the joined geometry with the repeated boundary removed.
+        coords = []
+        for leg in raw["legs"]:
+            points = [[p["longitude"], p["latitude"]] for p in leg["points"]]
+            coords.extend(points[1:] if coords and points and coords[-1] == points[0] else points)
+        if len(coords) < 2 or any(
+            not all(isinstance(v, (int, float)) and math.isfinite(v) for v in c) for c in coords
+        ):
+            raise ProviderError("TomTom returned invalid truck route geometry.")
         progress = raw.get("progress", [])
         if (
             len(progress) < 2

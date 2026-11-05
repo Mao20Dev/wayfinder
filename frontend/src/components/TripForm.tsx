@@ -3,6 +3,7 @@ import { ArrowDownUp, ArrowRight, ChevronDown, X } from 'lucide-react'
 import type { Language } from '../i18n'
 import type { Location } from '../types'
 import LocationField from './LocationField'
+import { TRUCK_FIELDS, type TruckInputs } from '../truck'
 type Props = {
   lang: Language
   origin: Location | null
@@ -15,6 +16,10 @@ type Props = {
   reassessing: boolean
   loadValid: boolean
   retrySeconds: number
+  truck: TruckInputs
+  truckValid: boolean
+  truckAvailable: boolean | null
+  onTruck: (value: TruckInputs) => void
   onOrigin: (value: Location | null) => void
   onDestination: (value: Location | null) => void
   onDeparture: (value: string) => void
@@ -38,6 +43,10 @@ export default function TripForm({
   reassessing,
   loadValid,
   retrySeconds,
+  truck,
+  truckValid,
+  truckAvailable,
+  onTruck,
   onOrigin,
   onDestination,
   onDeparture,
@@ -50,7 +59,12 @@ export default function TripForm({
   onClose,
 }: Props) {
   const busy = loading || reassessing
-  const valid = !!origin && !!destination && loadValid && !!departure
+  const valid =
+    !!origin &&
+    !!destination &&
+    loadValid &&
+    !!departure &&
+    (mode === 'demo' || (truckValid && truckAvailable === true))
   const zone = Intl.DateTimeFormat().resolvedOptions().timeZone
   return (
     <aside className="planning-panel">
@@ -58,13 +72,15 @@ export default function TripForm({
         id="trip-form"
         onSubmit={(event) => {
           event.preventDefault()
+          const profile = event.currentTarget.querySelector<HTMLDetailsElement>('.truck-options')
+          if (profile && truckValid) profile.open = false
           onSubmit()
         }}
       >
         <div className="panel-title">
           <div>
             <h1>Plan your trip</h1>
-            <p>Compare routes by weather risk.</p>
+            <p>Truck routes, compared by weather risk.</p>
           </div>
           <button
             className="icon-button"
@@ -136,7 +152,7 @@ export default function TripForm({
           onChange={(event) => onLoad(event.target.value)}
           helperText={
             loadValid
-              ? 'Cargo only; excludes vehicle weight.'
+              ? 'Used for weather rules; added to empty weight for routing.'
               : 'Enter a value from 0 to 200,000 lb.'
           }
           slotProps={{
@@ -144,6 +160,62 @@ export default function TripForm({
             input: { endAdornment: <span className="input-unit">lb</span> },
           }}
         />
+        <details className="trip-options truck-options">
+          <summary>
+            Truck profile{' '}
+            <span>
+              {truckValid ? 'Ready' : 'Required'} <ChevronDown size={14} />
+            </span>
+          </summary>
+          <p>
+            Use the actual loaded dimensions, including the trailer. Feet use decimals: 13 ft 6 in =
+            13.5 ft.
+          </p>
+          <div className="truck-fields">
+            {TRUCK_FIELDS.map((field) => (
+              <TextField
+                key={field.key}
+                label={field.label}
+                type="number"
+                size="small"
+                value={truck[field.key]}
+                disabled={loading}
+                onChange={(event) => onTruck({ ...truck, [field.key]: event.target.value })}
+                slotProps={{
+                  htmlInput: { min: field.min, max: field.max, step: field.step },
+                  input: { endAdornment: <span className="input-unit">{field.unit}</span> },
+                }}
+              />
+            ))}
+          </div>
+          <p className="truck-gross">
+            Gross weight:{' '}
+            {truck.empty_weight_lb.trim() && loadValid
+              ? `${(Number(truck.empty_weight_lb) + Number(load)).toLocaleString('en-US')} lb`
+              : 'Enter empty weight + cargo'}
+          </p>
+          <p>
+            Maximum loaded axle weight is the heaviest axle, not gross weight divided by axle count.
+            Enter it again after changing cargo.
+          </p>
+          <label className="truck-confirm">
+            <input
+              type="checkbox"
+              checked={truck.non_hazardous}
+              disabled={loading}
+              onChange={(event) => onTruck({ ...truck, non_hazardous: event.target.checked })}
+            />{' '}
+            Non-hazardous cargo only
+          </label>
+          {!truckValid && (
+            <p>Complete all measurements and check that axle weights match the loaded truck.</p>
+          )}
+        </details>
+        {truckAvailable === false && (
+          <p className="truck-provider-status" role="status">
+            Truck routing is not connected yet. You can explore the weather example below.
+          </p>
+        )}
         <details className="trip-options">
           <summary>
             Weather sampling{' '}
@@ -184,7 +256,7 @@ export default function TripForm({
                 ? `Available in ${retrySeconds}s`
                 : mode === 'demo'
                   ? 'Update example'
-                  : 'Compare routes'}
+                  : 'Compare truck routes'}
         </Button>
         {loading ? (
           <button type="button" className="cancel-button" onClick={onCancel}>

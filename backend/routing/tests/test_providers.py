@@ -127,11 +127,31 @@ def test_tomtom_requests_truck_and_interpolates_progress(monkeypatch):
     }
     fetch = Mock(return_value=response)
     with patch.object(providers, "fetch_json", fetch):
-        result = tomtom_routes(DEMO_ORIGIN, DEMO_DESTINATION, datetime.now(UTC))
+        result = tomtom_routes(
+            DEMO_ORIGIN,
+            DEMO_DESTINATION,
+            datetime.now(UTC),
+            {
+                "empty_weight_lb": 32000,
+                "height_ft": 13.5,
+                "width_ft": 8.5,
+                "length_ft": 70,
+                "max_axle_weight_lb": 17000,
+                "axles": 5,
+                "non_hazardous": True,
+            },
+            28000,
+        )
     params = fetch.call_args.args[1]
     assert params["travelMode"] == "truck"
     assert params["maxAlternatives"] == 2
     assert params["extendedRouteRepresentation"] == ["distance", "travelTime"]
-    assert "vehicleWeight" not in params  # Cargo is not gross vehicle weight.
+    assert params["vehicleWeight"] == 27216  # 60,000 lb gross, rounded up in kg.
+    assert params["vehicleHeight"] == 4.12
+    assert params["vehicleWidth"] == 2.6
+    assert params["vehicleLength"] == 21.34
+    assert params["vehicleAxleWeight"] == 7712
+    assert params["vehicleNumberOfAxles"] == 5
+    assert params["vehicleCommercial"] == "true"
     assert result[0]["times"] == pytest.approx([0, 200, 400])
     assert result[0]["distances"] == pytest.approx([0, 1000, 2000])

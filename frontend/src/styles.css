@@ -184,6 +184,35 @@ body {
 .planning-panel form {
   padding: 1.3rem;
 }
+.truck-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem 0.65rem;
+  margin: 1rem 0 0.5rem;
+}
+.truck-fields .MuiInputLabel-root {
+  font-size: 0.75rem;
+}
+.truck-confirm {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.75rem;
+  margin: 0.75rem 0;
+}
+.truck-confirm input {
+  accent-color: var(--green);
+}
+.truck-gross {
+  font-weight: 600;
+}
+.truck-provider-status {
+  font-size: 0.75rem;
+  color: #7a5425;
+  background: #fff6e8;
+  border-radius: 8px;
+  padding: 0.65rem;
+}
 .panel-title {
   display: flex;
   align-items: flex-start;

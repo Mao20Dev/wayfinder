@@ -1,21 +1,18 @@
 # Preparación del Loom · Mauro graba personalmente
 
-Duración objetivo: 8 minutos. La aplicación está solo en inglés. Estas notas de preparación están en español; el recorrido de entrevista debe ensayarse en inglés. Usar ejemplos que puedas explicar y ejecutar. El video no se ha grabado automáticamente.
+Duración objetivo: 2–3 minutos. Mostrar solo la aplicación, sin código, hablando en inglés sencillo. Las notas están en español. El video no se ha grabado automáticamente.
 
 | Minuto | Qué mostrar | Qué debes poder explicar |
 |---|---|---|
-| 0:00–0:45 | Pantalla principal y problema | Comparar clima a lo largo del tiempo de un viaje, no sólo en origen/destino. |
-| 0:45–2:00 | Botón Try a Chicago → Detroit example, carretera coloreada, etiquetas y tres tarjetas | Geometría y tiempos registrados de OSRM; clima simulado. Mostrar la diferencia concreta que decide la recomendación y el tiempo adicional. |
-| 2:00–3:00 | Un punto y la tabla de puntos | Distancia sobre la ruta, ETA acumulada, unidades y peor condición. |
-| 3:00–4:00 | Cambiar carga y observar la reevaluación automática | Una regla concreta: 45 mph y más de 30,000 lb prohíbe viajar. El pronóstico se reutiliza sin llamadas nuevas. Mostrar un punto que realmente active esa regla. |
-| 4:00–5:00 | Cambiar de Along the route a 48-hour forecast y mover +0/+24/+48 | Hora común del corredor frente a ETA de cada punto. La exploración no altera salida ni recomendación. La perspectiva es visual, sin elevación real. |
-| 5:00–6:00 | Use live weather o editar el viaje y Compare routes | Consultar sólo una vez si la caché está fría; explicar que puede tardar. No fingir una tormenta en datos reales. |
-| 6:00–7:15 | `risk.py`, un test de límites y arquitectura | Reglas puras, comparación por prioridades, datos desconocidos y API keys sólo en backend. |
-| 7:15–8:00 | Limitaciones y ejecución | Perfil car de OSRM, TomTom opcional, ausencia de descansos, servicios gratuitos y cómo arrancar. |
+| 0:00–0:25 | Ciudades, salida, carga y Truck profile | Medidas cargadas y peso vacío del conjunto. Peso total = vacío + carga. Peso del eje más cargado medido, no un promedio. Solo carga no peligrosa. |
+| 0:25–1:10 | Compare truck routes, tarjetas y un punto | TomTom recibe perfil de camión; Open-Meteo aporta clima a la ETA. Severe miles, High miles, promedio ponderado y duración deciden, en ese orden. No Travel o datos faltantes excluyen la recomendación. |
+| 1:10–1:50 | 48-hour forecast y capas | Toda el área usa una hora común; el deslizador trabaja con datos cargados y no modifica salida ni recomendación. |
+| 1:50–2:20 | Best time to leave, Save route y Export GPX | Comparación meteorológica sobre carreteras actuales. Aplicar otra hora real comprueba rutas de nuevo. El GPX es planificación; no impone restricciones. |
+| 2:20–2:45 | Cierre sobre el mapa | Caché, consultas agrupadas, pruebas y README, sin mostrar código. Revisar señales y normativa. Google Maps solo es vista previa de automóvil. |
 
 ## Frases precisas
 
-- “En esta demostración, las rutas vienen de una API real y el clima es un escenario sintético identificado en pantalla.”
+- “En modo real usamos TomTom para camiones y pronóstico real. El ejemplo meteorológico usa carreteras de automóvil y clima sintético, y no sirve para navegar un camión.”
 - “La ruta recomendada minimiza primero las millas Severe; no intercambio seguridad por minutos mediante una puntuación inventada.”
 - “El promedio es una escala ordinal ponderada por distancia, no una probabilidad de accidente.”
 - “El mismo servicio entrega React compilado y atiende la API de Django.”

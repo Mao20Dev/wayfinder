@@ -1,4 +1,16 @@
-# Validación de la versión local
+# Validación
+
+## Corrección de rutas de camión
+
+TomTom Evaluation se comprobó con un perfil de prueba: 13.5 ft de alto, 8.5 ft de ancho, 70 ft de largo, 32,000 lb de peso vacío, 28,000 lb de carga, 17,000 lb en el eje más cargado y cinco ejes. La solicitud aplicó 60,000 lb de peso total, modo camión comercial y conversiones conservadoras de unidades; devolvió tres rutas reales. Estos valores son un caso de prueba, no medidas predeterminadas para un camión de Mauro.
+
+La comprobación local `python scripts/check_truck_opera.py` pasó con clima real completo, tres rutas TomTom, guardado de perfil, geometría GPX completa, deslizador sin nuevas consultas, vista móvil sin desbordamiento y ausencia de navegación automática a Google Maps. Sin errores JavaScript. Cambiar carga invalida rutas y borra el dato de eje cargado. Los cambios de salida reales vuelven a consultar rutas.
+
+119 pruebas de backend y 22 de frontend pasan. Se verifican perfil obligatorio, pesos coherentes, unidades, ausencia de respaldo de automóvil, bloqueo de exportación del ejemplo, protección del cambio de carga y nueva consulta al aplicar otra salida. Compilación TypeScript/Vite, Ruff y formato pasan. El aviso de tamaño de MapLibre sigue presente.
+
+Los resultados siguientes describen la versión anterior de automóvil y sus verificaciones históricas; no certifican navegación de camiones. La cobertura de restricciones depende del proveedor y no sustituye señales, permisos ni normativa local.
+
+## Verificaciones históricas
 
 Fecha de trabajo: 4 de noviembre de 2026, Colombia. Estas comprobaciones no equivalen a una prueba de producción ni a una verificación de TomTom con cuenta real.
 
