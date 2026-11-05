@@ -59,3 +59,12 @@ Fecha de trabajo: 4 de noviembre de 2026, Colombia. Estas comprobaciones no equi
 Capturas y reportes de navegador: `artifacts/planner-empty.png`, `artifacts/city-preview.png`, `artifacts/searching.png`, `artifacts/desktop.png`, `artifacts/perspective.png`, `artifacts/mobile.png`, `artifacts/mobile-forecast.png`, `artifacts/live-desktop.png`, `artifacts/risk-road.png`, `artifacts/browser-validation.json` y `artifacts/mobile-validation.json`. No se incluyen en Git. El recorrido completo incluye un viaje real; después se verificó por separado el ajuste final de espacio móvil y movimiento reducido. El único mensaje 429 se simula y las capturas de rutas se toman antes de esa simulación.
 
 La revisión de pronóstico y planeación se reproduce con `python scripts/check_trip_planning_opera.py`. Reporte: `artifacts/trip-planning-validation.json`; capturas: `forecast-field.png`, `departure-applied.png`, `centered-minneapolis.png`, `live-forecast-field.png` y `mobile-forecast-field.png`, dentro de `artifacts/`. El enlace a Maps se intercepta para validar el traspaso sin transmitir datos a Google durante la prueba.
+
+
+## Public verification on Render Free
+
+Application commit `d7ae0c5` was deployed successfully on November 4, 2026. GitHub Actions passed. The public Opera smoke test passed all nine checks: continuous forecast coverage, 25 departure candidates, cached departure updates, route persistence across reloads, intercepted Maps handoff, Start trip URL, live Minneapolis?Detroit with three routes, 48-hour exploration without new API requests, and the mobile forecast. No JavaScript errors occurred.
+
+A separate public Chicago?Detroit API check returned three routes with complete arrival-weather coverage and a recommendation. Root, compiled assets and the health endpoint returned HTTP 200.
+
+The first deployment's weather requests failed with HTTP errors. After redeployment, both real-trip checks succeeded; the initial rejection could not be reproduced or assigned a confirmed cause. This is a verification result, not an uptime guarantee. Safe logs now include the provider HTTP status without request URLs or credentials. Missing forecasts remain unknown and cannot receive a safe-route recommendation.

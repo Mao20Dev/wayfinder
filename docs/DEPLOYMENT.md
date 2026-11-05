@@ -26,3 +26,14 @@ python scripts/check_trip_planning_opera.py
 The script uses an isolated Opera profile. It intercepts the Google Maps destination during link validation instead of sending trip coordinates to Google. It does not use existing user tabs, cookies or the clipboard.
 
 Public root and compiled assets returned 200, `/api/health/` returned the expected service identity, and HTTPS responses carried HSTS. The hosted app remains an assessment prototype with the routing and risk-model limitations documented in the README.
+
+
+## Verified release
+
+Application commit: `d7ae0c56475ab37a856ce0bcc5b138ce555d6497`.
+Render deploy: `dep-dblsefui0phs7389f4q0` (live).
+GitHub Actions: https://github.com/Mao20Dev/wayfinder/actions/runs/41937898888 (success).
+
+The public Opera check passed with real Minneapolis?Detroit weather, three routes, departure comparison, persistent local saves, Maps URL handoff and mobile forecast; no JavaScript errors were observed. Google Maps navigation was intercepted during the automated test. A separate Chicago?Detroit API check returned three complete routes. See `VALIDATION.md` for the initial weather failure and successful subsequent checks.
+
+Later documentation-only commits do not require rebuilding the running application.
