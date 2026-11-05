@@ -8,6 +8,8 @@ La comprobación local `python scripts/check_truck_opera.py` pasó con clima rea
 
 119 pruebas de backend y 22 de frontend pasan. Se verifican perfil obligatorio, pesos coherentes, unidades, ausencia de respaldo de automóvil, bloqueo de exportación del ejemplo, protección del cambio de carga y nueva consulta al aplicar otra salida. Compilación TypeScript/Vite, Ruff y formato pasan. El aviso de tamaño de MapLibre sigue presente.
 
+La misma prueba se ejecutó contra `https://wayfinder-w1d0.onrender.com` tras publicar `691d16a`: pasaron las doce comprobaciones, con tres rutas TomTom, clima completo y cero errores JavaScript. El despliegue y GitHub Actions constan en `DEPLOYMENT.md`. Un reporte adicional de TomTom confirmó los parámetros efectivos del camión, sin registrar la clave.
+
 Los resultados siguientes describen la versión anterior de automóvil y sus verificaciones históricas; no certifican navegación de camiones. La cobertura de restricciones depende del proveedor y no sustituye señales, permisos ni normativa local.
 
 ## Verificaciones históricas

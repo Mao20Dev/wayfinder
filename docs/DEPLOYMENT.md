@@ -37,3 +37,15 @@ GitHub Actions: https://github.com/Mao20Dev/wayfinder/actions/runs/41937898888 (
 The public Opera check passed with real Minneapolis?Detroit weather, three routes, departure comparison, persistent local saves, Maps URL handoff and mobile forecast; no JavaScript errors were observed. Google Maps navigation was intercepted during the automated test. A separate Chicago?Detroit API check returned three complete routes. See `VALIDATION.md` for the initial weather failure and successful subsequent checks.
 
 Later documentation-only commits do not require rebuilding the running application.
+
+## Truck routing release
+
+- Application commit: `691d16a`.
+- Render deploy: `dep-dblt2bijnfac73ddlvog`, live on November 4, 2026 (Colombia).
+- GitHub Actions: https://github.com/Mao20Dev/wayfinder/actions/runs/41943409377 (success; actor Mao20Dev).
+- A dedicated Routing API key was created in the user's TomTom account under Evaluation, without enabling a paid plan. It is stored only in the ignored local `.env` and the Render service environment. No key value is recorded here.
+- Public health and configuration returned HTTP 200, with `routing_provider=TomTom truck` and `truck_routing_available=true`.
+- The current public Opera smoke test passed all twelve checks: required profile, gross weight, complete real weather, non-navigable weather demo, hourly weather options, complete GPX track, saved profile, slider without API calls, mobile layout, cargo invalidation, fresh truck routes after departure changes and no Google Maps navigation. It returned three live truck routes with no JavaScript errors.
+- An additional direct TomTom check requested `report=effectiveSettings`. The response confirmed commercial truck mode, height 4.12 m, width 2.60 m, length 21.34 m, gross weight 27,216 kg, maximum axle weight 7,712 kg and five axles for the documented test case. The private API key was excluded from the diagnostic artifact.
+
+The previous release's Google Maps Start trip behavior has been removed. GPX is a planning track, not a truck navigator or a guarantee that every restriction is mapped. Configure a truck navigator with the same vehicle profile and review current restrictions before driving.
